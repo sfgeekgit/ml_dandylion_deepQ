@@ -2,38 +2,48 @@
 # Playable by 2 players who share a keyboard.                                                                                     
 
 import copy
+import torch
 
-def initialize_board():
-    return [[' ' for _ in range(5)] for _ in range(5)]
 
+def initialize_board():    
+    return [[0 for _ in range(5)] for _ in range(5)]
 
 def display_board_with_labels(board):
+    #print(f"{board=}")
+    #tsor = board_to_tensor(board)
+    #print(f"{tsor=}")
     col_labels = '  A B C D E'
     print(col_labels)
     for i, row in enumerate(board):
-        print(f"{i+1} {' '.join(row)}")
+        print(f"{i+1} {' '.join('*' if cell == 1 else '.' if cell == 2 else ' ' for cell in row)}")
 
 def place_dandelion(board, row, col):
-    board[row][col] = '*'
+    board[row][col] = 1
+
+def board_to_tensor(board):
+    dandelion_tensor = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1)
+    seed_tensor = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1)
+    return torch.cat((dandelion_tensor, seed_tensor))
+
 
 
 def spread_seeds(board, direction):
     new_board = copy.deepcopy(board)
     for row in range(5):
         for col in range(5):
-            if board[row][col] == '*':
+            if board[row][col] == 1:
                 dx, dy = direction
                 new_row, new_col = row + dx, col + dy
                 while 0 <= new_row < 5 and 0 <= new_col < 5:
-                    if new_board[new_row][new_col] == ' ':
-                        new_board[new_row][new_col] = '.'
+                    if new_board[new_row][new_col] == 0:
+                        new_board[new_row][new_col] = 2
                     new_row += dx
                     new_col += dy
     return new_board
 
 
 def check_dandelion_win(board):  # check after every Dandelion turn                                                               
-    return all(cell in ['*', '.'] for row in board for cell in row)
+    return all(cell in [1, 2] for row in board for cell in row)
 
 
 

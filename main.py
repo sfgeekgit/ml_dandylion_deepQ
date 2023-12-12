@@ -3,6 +3,8 @@
 
 import copy
 import torch
+import torch.nn as nn 
+
 
 
 def initialize_board():    
@@ -114,5 +116,33 @@ def play_game():
     # Check for win condition if the game wasn't already won                                                                      
     if not check_dandelion_win(board):
         print('Wind wins!')
+
+
+class NeuralNetwork(nn.Module):
+
+    # might add more layers... Just get prototype working first
+
+    def __init__(self):
+        super().__init__()
+        self.linear_relu_stack = nn.Sequential(
+            nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
+            nn.ReLU(),
+            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            nn.ReLU(),
+            nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE),
+        )
+        '''
+        layers = OrderedDict()
+        for i in range(len(NN_SIZE) - 1):
+            layers[f"layer_{i}"] = nn.Linear(NN_SIZE[i], NN_SIZE[i+1])
+            if i < len(NN_SIZE) - 2:  # No ReLU after last layer
+                layers[f"relu_{i}"] = nn.ReLU()
+        self.linear_relu_stack = nn.Sequential(layers)
+        '''
+
+    def forward(self, x):
+        logits = self.linear_relu_stack(x)        
+        return logits
+
 
 play_game()

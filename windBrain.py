@@ -47,10 +47,23 @@ class WindNeuralNetwork(nn.Module):
         return logits
 
 def reward_func(board, direction):
+    print("reward_func")
+    print(f"{board=}")
+    rews = {"win": 100, 
+            "lose": -100, 
+            "illegal": -100, 
+            "meh": 0
+            }
+
+    reward = rews["meh"]
+    if not direction in direction_names:
+        reward = rews["illegal"]
+        return reward
+    
     new_board = spread_seeds(board, direction)
     wind_lost = check_dandelion_win(new_board)
-
-    reward = 0
+    if wind_lost:
+        reward = rews["lose"]
     
     return reward
 

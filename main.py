@@ -29,8 +29,8 @@ def place_dandelion(board, row, col):
     board[row][col] = 1
 
 def board_to_tensor(board):
-    dandelion_tensor = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1)
-    seed_tensor = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1)
+    dandelion_tensor = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
+    seed_tensor = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1).float()
     return torch.cat((dandelion_tensor, seed_tensor))
 
 def spread_seeds(board, direction):
@@ -114,9 +114,6 @@ def play_game():
         print('Wind wins!')
 
 class WindNeuralNetwork(nn.Module):
-
-
-
     # might add more layers... Just get prototype working first
 
     def __init__(self):
@@ -156,5 +153,5 @@ def train_nn():
 #       Main        #
 
 if __name__ == "__main__":
-    play_game()
-    #train_nn()
+    #play_game()
+    train_nn()

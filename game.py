@@ -2,8 +2,8 @@
 # Playable by 2 players who share a keyboard.                                                                                     
 
 import copy
-import torch
-import torch.nn as nn 
+#import torch
+#import torch.nn as nn 
 
 BOARD_WIDTH = 5
 BOARD_HEIGHT = 5
@@ -17,9 +17,9 @@ def initialize_board():
     return [[0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
 
 def display_board_with_labels(board):
-    print(f"{board=}")
-    tsor = board_to_tensor(board)
-    print(f"{tsor=}")
+    #print(f"{board=}")
+    #tsor = board_to_tensor(board)
+    #print(f"{tsor=}")
     col_labels = '  A B C D E'
     print(col_labels)
     for i, row in enumerate(board):
@@ -28,10 +28,7 @@ def display_board_with_labels(board):
 def place_dandelion(board, row, col):
     board[row][col] = 1
 
-def board_to_tensor(board):
-    dandelion_tensor = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
-    seed_tensor = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1).float()
-    return torch.cat((dandelion_tensor, seed_tensor))
+
 
 def spread_seeds(board, direction):
     new_board = copy.deepcopy(board)
@@ -113,45 +110,11 @@ def play_game():
     if not check_dandelion_win(board):
         print('Wind wins!')
 
-class WindNeuralNetwork(nn.Module):
-    # might add more layers... Just get prototype working first
 
-    def __init__(self):
-        super().__init__()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
-            nn.ReLU(),
-            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
-            nn.ReLU(),
-            nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE),
-        )
-        '''
-        layers = OrderedDict()
-        for i in range(len(NN_SIZE) - 1):
-            layers[f"layer_{i}"] = nn.Linear(NN_SIZE[i], NN_SIZE[i+1])
-            if i < len(NN_SIZE) - 2:  # No ReLU after last layer
-                layers[f"relu_{i}"] = nn.ReLU()
-        self.linear_relu_stack = nn.Sequential(layers)
-        '''
-
-    def forward(self, x):
-        logits = self.linear_relu_stack(x)        
-        return logits
-
-def train_nn():
-    wind_brain  = WindNeuralNetwork()
-    optimizer = torch.optim.AdamW(wind_brain.parameters(), lr=LEARNING_RATE)
-
-    board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
-    # to do: make a bunch of boards and train on them
-    T = board_to_tensor(board)
-
-    logits = wind_brain(T)  # that calls forward because __call__ is coded magic backend
-    print("logits" , logits)
 
 #####################
 #       Main        #
 
 if __name__ == "__main__":
-    #play_game()
-    train_nn()
+    play_game()
+    #train_nn()

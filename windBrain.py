@@ -14,10 +14,12 @@ def board_to_tensor(board, available_directions):
     # 1st 8 cells are available directions
     # next 25 cells are dandelions
     # next 25 cells are seeds
-    direction_tensor = torch.tensor([1 if direction in available_directions else 0 for direction in direction_names]).float()
+    direction_tensor = torch.tensor([1 if direction else 0 for direction in available_directions]).float()
     dandelion_tensor  = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
     seed_tensor       = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1).float()
     
+    print(f"{direction_tensor=}")
+
     return torch.cat((direction_tensor, dandelion_tensor, seed_tensor))
 
 
@@ -54,6 +56,10 @@ def reward_func(board, direction):
             "illegal": -100, 
             "meh": 0
             }
+    print(f"{board=}")
+    print(f"{direction=}")
+    print(f"{rews=}")
+    quit()
 
     reward = rews["meh"]
     if not direction in direction_names:
@@ -86,14 +92,13 @@ def train_nn():
     wind_brain  = WindNeuralNetwork()
     optimizer = torch.optim.AdamW(wind_brain.parameters(), lr=LEARNING_RATE)
 
-    available_directions = [0,0,0,1,1,1,1,1] 
-    
-
-
+    available_directions = [0,1,0,1,0,1,0,1]     
 
     board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
     # to do: make a bunch of boards and train on them
     T = board_to_tensor(board, available_directions)
+    print("T", T)
+
 
     logits = wind_brain(T)  # that calls forward because __call__ is coded magic backend
     print("logits" , logits)

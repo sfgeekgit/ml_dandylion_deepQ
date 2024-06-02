@@ -5,8 +5,8 @@ import copy
 #import torch
 #import torch.nn as nn 
 
-BOARD_WIDTH = 5
-BOARD_HEIGHT = 5
+
+BOARD_HEIGHT = BOARD_WIDTH = 5  # will always be 5
 LEARNING_RATE = 0.001
 
 INPUT_SIZE = BOARD_WIDTH * BOARD_HEIGHT * 2
@@ -30,12 +30,12 @@ def place_dandelion(board, row, col):
 
 
 
-def spread_seeds(board, direction):
+def spread_seeds(board, direction_tuple):
     new_board = copy.deepcopy(board)
     for row in range(BOARD_HEIGHT):
         for col in range(BOARD_WIDTH):
             if board[row][col] == 1:
-                dx, dy = direction
+                dx, dy = direction_tuple
                 new_row, new_col = row + dx, col + dy
                 while 0 <= new_row < BOARD_HEIGHT and 0 <= new_col < BOARD_WIDTH:
                     if new_board[new_row][new_col] == 0:
@@ -53,7 +53,7 @@ def convert_user_input(row_str, col_str):
     return row, col
 
 # Directions (N, S, E, W, NE, NW, SE, SW)                                                                                         
-directions = [(-1, 0), (1, 0), (0, 1), (0, -1), (-1, 1), (-1, -1), (1, 1), (1, -1)]
+dir_pairs = [(-1, 0), (1, 0), (0, 1), (0, -1), (-1, 1), (-1, -1), (1, 1), (1, -1)]
 direction_names = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW']
 
 def validate_row_input(row_str):
@@ -101,10 +101,11 @@ def play_game():
         chosen_direction = input('Choose a direction to blow the wind: ')
         while not validate_direction_input(chosen_direction, available_directions):
             print("Invalid or unavailable direction. Please choose again.")
-            chosen_direction = input('Choose a direction to blow the wind: ')
+            chosen_direction = input('Choose a direction to blow the wind: ').upper()
 
-        available_directions.remove(chosen_direction.upper())
-        board = spread_seeds(board, directions[direction_names.index(chosen_direction.upper())])
+        available_directions.remove(chosen_direction)
+        dir_tuple = dir_pairs[direction_names.index(chosen_direction)]
+        board = spread_seeds(board, dir_tuple)
 
     # Check for win condition if the game wasn't already won                                                                      
     if not check_dandelion_win(board):

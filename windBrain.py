@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn 
-from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, directions, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game
+from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game
 
 LEARNING_RATE = 0.001
 
@@ -40,7 +40,7 @@ def board_state_from_tensor(tensor):
             elif seed_list[row * BOARD_WIDTH + col] == 1.:
                 board[row][col] = 2    
     #out = [direction_list, board]
-    #print(f"{out=}")
+    #print(f"Board State From Tensor (should be directions, board) {out=}")
     return [direction_list, board]
 
 
@@ -71,42 +71,42 @@ class WindNeuralNetwork(nn.Module):
         return logits
 
 def reward_func(boardTensor, direction):
-    board_state = board_state_from_tensor(boardTensor)
-    print(f"{board_state=}")
-    quit()
+    direction = 1 # dev
 
-
-    print("reward_func")
-    print(f"{board=}")
     rews = {"win": 100, 
             "lose": -100, 
             "illegal": -100, 
             "meh": 0
             }
-    print(f"{board=}")
-    print(f"{direction=}")
 
-    available_directions = board[0:NUM_DIR]
-    print(f"{available_directions=}")
+    board_state = board_state_from_tensor(boardTensor)
+    #print(f"{board_state=}")
+    #print(f"{direction=}")
+    avail_dirs = board_state[0]
+    if not avail_dirs[direction]:
+        #print("illegal move")
+        return rews["illegal"]
+    board = board_state[1]
+    print(f"{    board=}")
+    dir_tuple = dir_pairs[direction]
+    new_board = spread_seeds(board, dir_tuple)
 
-    #if not direction in available_directions:
-    if not available_directions[direction]:
-        reward = rews["illegal"]
-        print(f"illegal move: {direction=}")
-        return reward
-    else:
-        print(f"fine move: {direction=}") 
 
-    reward = rews["meh"]
-    list_board = board[NUM_DIR:]
-    print(f"{list_board=}")
-
-    new_board = spread_seeds(board, direction)
+    print(f"{new_board=}")
     wind_lost = check_dandelion_win(new_board)
     if wind_lost:
-        reward = rews["lose"]
+        print("Wind lost")
+        return rews["lose"]
     
-    return reward
+    # check win
+    wind_won = False
+    if wind_won:
+        print("Wind won")
+        return rews["win"]
+
+    print("meh. Keep playing")
+    return rews["meh"]
+
 
 def reward_func_by_AI (board, direction):
     # um... I just wrote the function name, litterally all this code showed up..
@@ -147,7 +147,7 @@ def train_nn():
 
 
     logits = wind_brain(boardStateTensor)  # that calls forward because __call__ is coded magic backend
-    print("logits" , logits)
+    print("logitsss" , logits)
 
 
     #to_from_logs = logits.argmax()  # do this after training

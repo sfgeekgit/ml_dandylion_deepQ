@@ -71,41 +71,36 @@ class WindNeuralNetwork(nn.Module):
         return logits
 
 def reward_func(boardTensor, direction):
-    direction = 1 # dev
 
-    rews = {"win": 100, 
+    rewards = {"win": 100, 
             "lose": -100, 
             "illegal": -100, 
             "meh": 0
             }
 
     board_state = board_state_from_tensor(boardTensor)
-    #print(f"{board_state=}")
-    #print(f"{direction=}")
     avail_dirs = board_state[0]
     if not avail_dirs[direction]:
         #print("illegal move")
-        return rews["illegal"]
-    board = board_state[1]
-    print(f"{    board=}")
+        return rewards["illegal"]
+    old_board = board_state[1]
+    #print(f"{old_board=}")
+
     dir_tuple = dir_pairs[direction]
-    new_board = spread_seeds(board, dir_tuple)
+    new_board = spread_seeds(old_board, dir_tuple)
+    #print(f"{new_board=}")
 
-
-    print(f"{new_board=}")
     wind_lost = check_dandelion_win(new_board)
     if wind_lost:
-        print("Wind lost")
-        return rews["lose"]
-    
-    # check win
-    wind_won = False
-    if wind_won:
-        print("Wind won")
-        return rews["win"]
-
-    print("meh. Keep playing")
-    return rews["meh"]
+        #print("Wind lost")
+        return rewards["lose"]
+    else:         # havn't lost yet!
+        # if this func was called with only 2 avail directions, then wind has won
+        # (this will be the wind's 7th move without losing)
+        moves_left  = sum(avail_dirs)
+        if moves_left <= 2:
+            return rewards["win"]
+    return rewards["meh"]
 
 
 def reward_func_by_AI (board, direction):

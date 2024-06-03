@@ -15,6 +15,8 @@ INPUT_SIZE = NUM_DIR + BOARD_WIDTH * BOARD_HEIGHT * 2
 HIDDEN_SIZE = 100
 OUTPUT_SIZE = NUM_DIR
 
+EPOCHS = 2000
+
 
 def board_state_to_tensor(board, available_directions):
     # 1st 8 cells are available directions
@@ -128,192 +130,90 @@ def train_nn():
     optimizer = torch.optim.AdamW(wind_brain.parameters(), lr=LEARNING_RATE)
 
 
-    #print()
-    #print()
-
-    available_directions = [0,1,0,1,0,1,0,1]
-    #print("available_directions", available_directions)
+    for stepnum in range(EPOCHS):
 
 
-    board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
-    #print("board", board)
-    # to do: make a bunch of boards and train on them
-    boardStateTensor = board_state_to_tensor(board, available_directions)
-    #print("boardStateTensor", boardStateTensor)
+        #print()
+        #print()
 
-    bb = board_state_from_tensor(boardStateTensor)
-    print("bb", bb)
-    
+        available_directions = [0,1,0,1,0,1,0,1]
+        #print("available_directions", available_directions)
 
 
-    logits = wind_brain(boardStateTensor)  # that calls forward because __call__ is coded magic backend
-    print("logitsss" , logits)
+        board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
+        #print("board", board)
+        # to do: make a bunch of boards and train on them
+        boardStateTensor = board_state_to_tensor(board, available_directions)
+        #print("boardStateTensor", boardStateTensor)
 
-
-    # now pick one random logit to check
-    # TODO: why just check one??? Maybe try "exhaustive" and check all? (as a later version)
-    # but meanwhile...
-    # use that one logit as the bellman left.
-    # then (I think) make that move and (I think) get the max logit as bellman_rigt
-
-
-    # Now pick one random direction and use it's logit as bellman left, then check that same pick as bellman right
-    rand_dir_check = random.randint(0, NUM_DIR-1)
-
-
-    checker_one_hots = F.one_hot(torch.tensor(rand_dir_check), NUM_DIR)
-    logits = logits * checker_one_hots
-
-    print(f"{rand_dir_check=}")
-    print(f"{checker_one_hots=}")
-    print(f"{logits=}")
-    
-    bellman_left = logits.sum()  # woot!
-    #print(f"{bellman_left=}")
-    #quit()
-
-    # OK, now have bellman_left. Make that move and get the max reward as bellman right?
-    reward = reward_func(boardStateTensor, rand_dir_check)
-    print(f"{reward=}")
-
-
-    if reward == 0:
-        keep_playing = torch.tensor(1)   # keep playing
-    else:
-        keep_playing = torch.tensor(0)   # terminal state, zero out the right logits, only use the reward
-    
-    #print(f"{     board=}")
-    next_state = spread_seeds(board, dir_pairs[rand_dir_check])
-    #print(f"{next_state=}")
-    # Remove choice from available directions
-    next_available_directions = available_directions.copy()
-    next_available_directions[rand_dir_check] = 0
-    right_input = board_state_to_tensor(next_state, next_available_directions)
-    print(f"{right_input=}")
-
-    right_logits = wind_brain(right_input)
-    print(f"{right_logits=}")
-
-    right_logits = right_logits.max(dim=0).values
-    print(f"{right_logits=}")
-
-    bellman_right = reward + keep_playing * DECAY * right_logits
-
-    # MSE
-    loss = F.mse_loss(bellman_left, bellman_right)
-
-    print(f"{loss=}")
-
-
-    #### Cut and paste this cargo, maybe it works..
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    quit()
-    # reward    =   reward_f(test_tubes, rand_to_from)  
-
-
-
-
-##########################
-'''
-
-    #to_from_logs = logits.argmax()  # do this after training
-
-    wind_direction = logits.argmax()  # do this after training
-    print("wind_direction", wind_direction)
-    reward = reward_func(boardStateTensor, wind_direction)
-    print("reward", reward)
-
-
-
-    rfrom = random_int = random.randint(0, NUM_TUBES-1)
-    rto = random_int = random.randint(0, NUM_TUBES-1)
-
+        #bb = board_state_from_tensor(boardStateTensor)
+        #print("bb", bb)
         
 
-    rand_from = torch.tensor(rfrom)  # do move, and compute right side
-    rand_to   = torch.tensor(rto)  # do move, and compute right side
 
-    
-    # It looks like what we're doing here is just picking ONE move to examine and zeroing out the rest
+        logits = wind_brain(boardStateTensor)  # that calls forward because __call__ is coded magic backend
+        #print("logits" , logits)
 
 
-    if SQUARED_OUTPUT:
-        to_from_sq = rto * NUM_TUBES + rfrom
-        one_hots = F.one_hot(torch.tensor(to_from_sq), NUM_TUBES * NUM_TUBES)
-        logits = logits * one_hots
+        # now pick one random logit to check
+        # TODO: why just check one??? Maybe try "exhaustive" and check all? (as a later version)
+        # but meanwhile...
+        # use that one logit as the bellman left.
+        # then (I think) make that move and (I think) get the max logit as bellman_rigt
 
-    # ^^^ Looks like that zeroes out the rest of the logits
-    
-    bellman_left = logits.sum()
-    #print(f"{bellman_left=}")
 
-    
-    # test one random
-    rand_to_from = (rto, rfrom)
-    reward    =   reward_f(test_tubes, rand_to_from)  
+        # Now pick one random direction and use it's logit as bellman left, then check that same pick as bellman right
+        rand_dir_check = random.randint(0, NUM_DIR-1)
+
+
+        checker_one_hots = F.one_hot(torch.tensor(rand_dir_check), NUM_DIR)
+        logits = logits * checker_one_hots
+
+        #print(f"{rand_dir_check=}")
+        #print(f"{checker_one_hots=}")
+        #print(f"{logits=}")
+        
+        bellman_left = logits.sum()  # woot!
+        #print(f"{bellman_left=}")
+        #quit()
+
+        # OK, now have bellman_left. Make that move and get the max reward as bellman right?
+        reward = reward_func(boardStateTensor, rand_dir_check)
+        #print(f"{reward=}")
 
 
         if reward == 0:
             keep_playing = torch.tensor(1)   # keep playing
         else:
             keep_playing = torch.tensor(0)   # terminal state, zero out the right logits, only use the reward
-    
-
         
-        new_state = next_state(test_tubes, rand_to_from)    
-        right_input = level_gen.tubes_to_list(new_state, NUM_TUBES)
-        T = tube_list_to_tensor(right_input)
-        right_logits = mynet(T) 
+        #print(f"{     board=}")
+        next_state = spread_seeds(board, dir_pairs[rand_dir_check])
+        #print(f"{next_state=}")
+        # Remove choice from available directions
+        next_available_directions = available_directions.copy()
+        next_available_directions[rand_dir_check] = 0
+        right_input = board_state_to_tensor(next_state, next_available_directions)
+
+        right_logits = wind_brain(right_input)
+
+        max_right_logits = right_logits.max(dim=0).values
+
+        bellman_right = reward + keep_playing * DECAY * max_right_logits
+
+        # MSE
+        loss = F.mse_loss(bellman_left, bellman_right)
+
+        if stepnum % 10 == 0:
+            print(f"loss {loss.item()}")
 
 
-        if SQUARED_OUTPUT:
-            right_logits = right_logits.max(dim=0).values
-
-       bellman_right = reward + keep_playing * DECAY * right_logits.sum()   # should this be right_logits max??
-        # for right_logits, this is using the highest value (the highest confidence) but should be the position of that???
-
-        
-
-               if loss_function == 'MSE':
-            # MSE
-            loss = F.mse_loss(bellman_left, bellman_right)
-
-        else:
-            loss = loss_function(bellman_left, bellman_right) 
-
-            #  Huber Loss
-            #loss_function = nn.SmoothL1Loss()
-            #loss = loss_function(bellman_left, bellman_right)
-        
-            #Mean Absolute Error (MAE)
-            #loss_function = nn.L1Loss()
-            #loss = loss_function(bellman_left, bellman_right)
-    
-
-    #print(f"{loss=}")
-    loss_rec.append(loss.item())
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    if stepnum %100==0:
-        print(stepnum , loss.item())
+        #### Now do the optimization step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
 
-
-#########            ###########
-
-    #         bellman_right = reward + keep_playing * DECAY * right_logits.sum()   # should this be right_logits max??
-     
-        bellman_right = reward + keep_playing * DECAY * right_logits.sum()   # should this be right_logits max??
-        # for right_logits, this is using the highest value (the highest confidence) but should be the position of that???
-
-    
-
-'''    
 
 
 

@@ -6,17 +6,26 @@ from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with
 
 
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.05
 
-DECAY=0.9
+DECAY=0.98
 
 NUM_DIR = 8 # will always be 8, but here for clarity
 INPUT_SIZE = NUM_DIR + BOARD_WIDTH * BOARD_HEIGHT * 2
 HIDDEN_SIZE = 100
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 2000
+EPOCHS = 4000
 
+
+reward_vals = {
+    "win": 1000, 
+    "lose": -100, 
+    "illegal": -100, 
+    #"meh": 0
+    "meh": 10
+}
+                
 
 def board_state_to_tensor(board, available_directions):
     # 1st 8 cells are available directions
@@ -79,17 +88,14 @@ class WindNeuralNetwork(nn.Module):
 
 def reward_func(boardTensor, direction):
 
-    rewards = {"win": 100, 
-            "lose": -100, 
-            "illegal": -100, 
-            "meh": 0
-            }
-
     board_state = board_state_from_tensor(boardTensor)
     avail_dirs = board_state[0]
+
+    #print(f"{avail_dirs=} {direction=}")
     if not avail_dirs[direction]:
         #print("illegal move")
-        return rewards["illegal"]
+        #return rewards["illegal"]
+        return "illegal"
     old_board = board_state[1]
     #print(f"{old_board=}")
 
@@ -100,29 +106,34 @@ def reward_func(boardTensor, direction):
     wind_lost = check_dandelion_win(new_board)
     if wind_lost:
         #print("Wind lost")
-        return rewards["lose"]
+        #quit()
+        #return rewards["lose"]
+        return "lose"
     else:         # havn't lost yet!
         # if this func was called with only 2 avail directions, then wind has won
         # (this will be the wind's 7th move without losing)
         moves_left  = sum(avail_dirs)
         if moves_left <= 2:
-            return rewards["win"]
-    return rewards["meh"]
+            #return rewards["win"]
+            #print("Wind won")
+            #quit()
+            return "win"
+    # return rewards["meh"]
+    #print("meh")
+    return "meh"
 
 
-def reward_func_by_AI (board, direction):
-    # um... I just wrote the function name, litterally all this code showed up..
-    # other than this comment... I was going to just give all for win or illegale move..
-    # ai comment and code follows:
-    # reward is the number of seeds that land on dandelions
-    # so we need to spread the seeds and then count the number of dandelions
-    new_board = spread_seeds(board, direction)
-    reward = 0
-    for row in range(BOARD_HEIGHT):
-        for col in range(BOARD_WIDTH):
-            if new_board[row][col] == 2:
-                reward += 1
-    return reward
+
+def rand_training_board() -> tuple[list[list[int]], list[int]]:
+    #board = initialize_board()
+    available_directions = [0,1,0,1,0,1,0,1]
+    #available_directions = [0] *4 + [1] *4
+    random.shuffle(available_directions)
+    board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
+    #available_directions = [random.randint(0, 1) for _ in range(NUM_DIR)]
+    return board, available_directions
+
+
 
 
 def train_nn():
@@ -136,15 +147,19 @@ def train_nn():
         #print()
         #print()
 
-        available_directions = [0,1,0,1,0,1,0,1]
-        #print("available_directions", available_directions)
 
 
-        board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
+
+        #board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
         #print("board", board)
         # to do: make a bunch of boards and train on them
+
+        board, available_directions = rand_training_board()
         boardStateTensor = board_state_to_tensor(board, available_directions)
-        #print("boardStateTensor", boardStateTensor)
+
+        #boardStateTensor = board_state_to_tensor(*rand_training_board())
+        # could be one line with the * operator, but need board later anyway.
+
 
         #bb = board_state_from_tensor(boardStateTensor)
         #print("bb", bb)
@@ -178,15 +193,25 @@ def train_nn():
         #quit()
 
         # OK, now have bellman_left. Make that move and get the max reward as bellman right?
-        reward = reward_func(boardStateTensor, rand_dir_check)
+        reward_type = reward_func(boardStateTensor, rand_dir_check)
+        right_reward = reward_vals[reward_type]
         #print(f"{reward=}")
 
 
-        if reward == 0:
+        if reward_type == "meh": # keep playing
             keep_playing = torch.tensor(1)   # keep playing
         else:
             keep_playing = torch.tensor(0)   # terminal state, zero out the right logits, only use the reward
-        
+
+        #print(f"{reward_type=} {keep_playing=}  {reward=}")
+
+
+        '''
+        if reward >= 20 or reward <= -20:
+            keep_playing = torch.tensor(1)   # keep playing
+        else:
+            keep_playing = torch.tensor(0)   # terminal state, zero out the right logits, only use the reward
+        '''
         #print(f"{     board=}")
         next_state = spread_seeds(board, dir_pairs[rand_dir_check])
         #print(f"{next_state=}")
@@ -199,12 +224,12 @@ def train_nn():
 
         max_right_logits = right_logits.max(dim=0).values
 
-        bellman_right = reward + keep_playing * DECAY * max_right_logits
+        bellman_right = right_reward + keep_playing * DECAY * max_right_logits
 
         # MSE
         loss = F.mse_loss(bellman_left, bellman_right)
 
-        if stepnum % 10 == 0:
+        if stepnum % 50 == 0:
             print(f"loss {loss.item()}")
 
 
@@ -213,12 +238,25 @@ def train_nn():
         loss.backward()
         optimizer.step()
 
+    return wind_brain
 
 
+
+def test_wind_brain(wind_brain):
+    print("\n\n Test Wind Brain")
+    board, available_directions = rand_training_board()
+    boardStateTensor = board_state_to_tensor(board, available_directions)
+    logits = wind_brain(boardStateTensor)  # that calls forward because __call__ is coded magic backend
+    print("avails" , available_directions)
+    print("logits" , logits)
 
 
 
 
 if __name__ == "__main__":
     print("windBrain.py")
-    train_nn()
+    wind_brain = train_nn()
+    test_wind_brain(wind_brain)
+
+
+

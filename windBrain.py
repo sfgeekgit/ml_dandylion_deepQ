@@ -4,18 +4,21 @@ import torch.nn.functional as F
 import random
 from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game
 
+BOARD_WIDTH = 0 # DEV!
+BOARD_HEIGHT = 0 # DEV!
 
 
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.005
 
 DECAY=0.98
 
 NUM_DIR = 8 # will always be 8, but here for clarity
 INPUT_SIZE = NUM_DIR + BOARD_WIDTH * BOARD_HEIGHT * 2
-HIDDEN_SIZE = 100
+#HIDDEN_SIZE = 100
+HIDDEN_SIZE = INPUT_SIZE # *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 4000
+EPOCHS = 10000
 
 
 reward_vals = {
@@ -23,15 +26,17 @@ reward_vals = {
     "lose": -100, 
     "illegal": -100, 
     #"meh": 0
-    "meh": 10
+    "meh": 10 
 }
                 
 
-def board_state_to_tensor(board, available_directions):
+def board_state_to_tensor(available_directions, board):
     # 1st 8 cells are available directions
     # next 25 cells are dandelions
     # next 25 cells are seeds
     direction_tensor = torch.tensor([1 if direction else 0 for direction in available_directions]).float()
+    if BOARD_HEIGHT == 0:  # dev
+        return direction_tensor 
     dandelion_tensor  = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
     seed_tensor       = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1).float()
     return torch.cat((direction_tensor, dandelion_tensor, seed_tensor))
@@ -96,14 +101,17 @@ def reward_func(boardTensor, direction):
         #print("illegal move")
         #return rewards["illegal"]
         return "illegal"
-    old_board = board_state[1]
-    #print(f"{old_board=}")
-
-    dir_tuple = dir_pairs[direction]
-    new_board = spread_seeds(old_board, dir_tuple)
+    if BOARD_WIDTH > 0:
+        old_board = board_state[1]
+        #print(f"{old_board=}")
+        dir_tuple = dir_pairs[direction]
+        new_board = spread_seeds(old_board, dir_tuple)
+    else:
+        old_board = []
+        new_board = []
     #print(f"{new_board=}")
 
-    wind_lost = check_dandelion_win(new_board)
+    wind_lost = check_dandelion_win(new_board) and BOARD_WIDTH > 0
     if wind_lost:
         #print("Wind lost")
         #quit()
@@ -116,7 +124,6 @@ def reward_func(boardTensor, direction):
         if moves_left <= 2:
             #return rewards["win"]
             #print("Wind won")
-            #quit()
             return "win"
     # return rewards["meh"]
     #print("meh")
@@ -125,10 +132,13 @@ def reward_func(boardTensor, direction):
 
 
 def rand_training_board() -> tuple[list[list[int]], list[int]]:
-    #board = initialize_board()
-    available_directions = [0,1,0,1,0,1,0,1]
-    #available_directions = [0] *4 + [1] *4
-    random.shuffle(available_directions)
+    available_directions = [1,1,1,0,0,0,0,1]
+
+    #num_ones = random.randint(1, 6)
+    #num_zeros = NUM_DIR - num_ones
+    #available_directions = [1] * num_ones + [0] * num_zeros
+    #random.shuffle(available_directions)
+
     board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
     #available_directions = [random.randint(0, 1) for _ in range(NUM_DIR)]
     return board, available_directions
@@ -155,10 +165,7 @@ def train_nn():
         # to do: make a bunch of boards and train on them
 
         board, available_directions = rand_training_board()
-        boardStateTensor = board_state_to_tensor(board, available_directions)
-
-        #boardStateTensor = board_state_to_tensor(*rand_training_board())
-        # could be one line with the * operator, but need board later anyway.
+        boardStateTensor = board_state_to_tensor(available_directions, board)
 
 
         #bb = board_state_from_tensor(boardStateTensor)
@@ -218,7 +225,7 @@ def train_nn():
         # Remove choice from available directions
         next_available_directions = available_directions.copy()
         next_available_directions[rand_dir_check] = 0
-        right_input = board_state_to_tensor(next_state, next_available_directions)
+        right_input = board_state_to_tensor(next_available_directions, next_state)
 
         right_logits = wind_brain(right_input)
 
@@ -233,6 +240,14 @@ def train_nn():
             print(f"loss {loss.item()}")
 
 
+        if stepnum % 1000 == 0:
+            print(f"stepnum {stepnum} of {EPOCHS}")
+            test_wind_brain(wind_brain)
+
+        if stepnum == 4000:
+            print(f"{logits=} \n{right_logits=} \n{bellman_left=} \n{bellman_right=} \n{right_reward=} \n{keep_playing=} \n{max_right_logits=}")
+            quit()
+
         #### Now do the optimization step
         optimizer.zero_grad()
         loss.backward()
@@ -244,17 +259,16 @@ def train_nn():
 
 def test_wind_brain(wind_brain):
     print("\n\n Test Wind Brain")
-    board, available_directions = rand_training_board()
-    boardStateTensor = board_state_to_tensor(board, available_directions)
+    board, available_directions = rand_training_board() 
+    boardStateTensor = board_state_to_tensor(available_directions, board)
     logits = wind_brain(boardStateTensor)  # that calls forward because __call__ is coded magic backend
     print("avails" , available_directions)
-    print("logits" , logits)
+    print("test logits" , logits)
 
 
 
 
 if __name__ == "__main__":
-    print("windBrain.py")
     wind_brain = train_nn()
     test_wind_brain(wind_brain)
 

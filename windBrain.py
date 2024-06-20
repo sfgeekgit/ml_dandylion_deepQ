@@ -137,7 +137,7 @@ def rand_training_board() -> tuple[list[list[int]], list[int]]:
     #num_ones = random.randint(1, 6)
     #num_zeros = NUM_DIR - num_ones
     #available_directions = [1] * num_ones + [0] * num_zeros
-    #random.shuffle(available_directions)
+    random.shuffle(available_directions)
 
     board = [[2, 1, 2, 1, 2], [0, 0, 2, 2, 2], [2, 2, 1, 2, 2], [2, 2, 2, 2, 1], [1, 0, 2, 2, 2]]
     #available_directions = [random.randint(0, 1) for _ in range(NUM_DIR)]

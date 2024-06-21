@@ -43,14 +43,14 @@ class DQN(nn.Module):
         self.fc2 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+        logits = F.relu(self.fc1(x))
+        logits = self.fc2(logits)
+        return logits
 
 model = DQN()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-def step(state, action):
+def game_step(state, action):
     #print(f"\nstate: {state}, action: {action}")
     if state[action] == 1:
         #moves_made = sum(state)
@@ -101,19 +101,12 @@ for epoch in range(EPOCHS):
         #print(f"{state=}  {q_values=}")
 
 
-        ## Mask illegal moves
-        # no! It's supposed to learn that itself...
-        #illegal_moves = torch.FloatTensor(state)
-        #q_values -= illegal_moves * 1e6  # Large negative value for illegal moves
-
-
-
         if random.random() < EXPLORATION_PROB:      # explore? 
             action = random.randint(0, NUM_DIR-1)
         else:                                       # else exploit
             action = torch.argmax(q_values).item()
 
-        next_state, reward, done = step(state, action)
+        next_state, reward, done = game_step(state, action)
         run_reward += reward
 
         # Prepare for next iteration
@@ -129,12 +122,6 @@ for epoch in range(EPOCHS):
         else:
             max_next_q_value = torch.max(next_q_values).item()
             bellman_right = reward + GAMMA * max_next_q_value  # This is the target value
-
-
-
-        # Bellman Equation
-        #max_next_q_value = torch.max(next_q_values).item()
-        #bellman_right = reward + GAMMA * max_next_q_value  # This is the target value
 
 
 

@@ -1,7 +1,8 @@
 ''' 
 Starting with an "MVP" deep q network
-Adding and experimenting and tweaking it
+Now making it a wind brain one step at a time
 '''
+
 
 import torch
 import torch.nn as nn 
@@ -76,15 +77,16 @@ for epoch in range(EPOCHS):
     ''' 
     If initial game state is far from win, it usually gets stuck in a bad state
     I think this is a local optimum
-    Update: This has been fixed by adding some exploration
-    It was 100% exploit, no exploration
-    Ideally, (not MVP) I guess it should explore early in the training, and then stop exploring at a certain point
+    I think this currently does 100% exploit, no exploration
+    TODO: set some explore
+
     '''
 
     # flip a random number of bit in the initial state
     #for _ in range(random.randint(0, NUM_DIR-1)):
     #    state[random.randint(0, NUM_DIR-1)] = 1
 
+    #print ("\n\n\n\n Init count: ", sum(state))
 
     run_reward = 0
     done = False
@@ -112,7 +114,7 @@ for epoch in range(EPOCHS):
             next_q_values = model(next_state_tensor)
 
 
-        # bellman_right should be just the reward if it's in a terminal state
+        # bellman_right should just be the reward if it's in a terminal state
         if done:
             bellman_right = reward
         else:
@@ -140,7 +142,7 @@ for epoch in range(EPOCHS):
         print(f"{target_q_values=} \n\n\n")
         '''
 
-        loss = F.mse_loss(q_values_pred, target_q_values) #  (whole tensor)
+        loss = F.mse_loss(q_values_pred, target_q_values) # oringinal code (whole tensor)
         #loss = F.mse_loss(bellman_left, bellman_right) # one number (bellman_right)
         #optimizer.zero_grad()  # need this if loss is just bellman numbers, not whole tensor
 

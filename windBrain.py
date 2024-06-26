@@ -177,6 +177,10 @@ def train_nn():
         #print("logits" , logits)
 
 
+        # TRY EXHAUSTIVE!!
+        # TRY EXHAUSTIVE!!
+        # TRY EXHAUSTIVE!!
+        # TRY EXHAUSTIVE!!
         # now pick one random logit to check
         # TODO: why just check one??? Maybe try "exhaustive" and check all? (as a later version)
         # but meanwhile...
@@ -184,8 +188,11 @@ def train_nn():
         # then (I think) make that move and (I think) get the max logit as bellman_rigt
 
 
+
+        
         # Now pick one random direction and use it's logit as bellman left, then check that same pick as bellman right
         rand_dir_check = random.randint(0, NUM_DIR-1)
+
 
 
         checker_one_hots = F.one_hot(torch.tensor(rand_dir_check), NUM_DIR)
@@ -238,7 +245,17 @@ def train_nn():
 
         if stepnum % 50 == 0:
             print(f"loss {loss.item()}")
+            print(f"{right_logits=}")
+            print(f"{max_right_logits=}")
 
+            print(f"{rand_dir_check=}")
+            print(f"{checker_one_hots=}")
+            print(f"{logits=}")
+            
+            print(f"{bellman_left=}")
+
+
+            print(f"{right_reward=}\n\n\n")
 
         if stepnum % 1000 == 0:
             print(f"stepnum {stepnum} of {EPOCHS}")

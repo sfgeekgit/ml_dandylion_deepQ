@@ -17,7 +17,7 @@ INPUT_SIZE = NUM_DIR
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 25000
+EPOCHS = 20000
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.95  
@@ -26,7 +26,7 @@ reward_vals = {
     "win": 100, 
     "illegal": -100, 
     "lose": -100,
-    "meh": 10
+    "meh": 1
 }
 
 wcnt=0
@@ -153,6 +153,6 @@ for epoch in range(EPOCHS):
             good_pass_cnt += 1
         if good_pass_cnt > 4:
             print("got good by epoch", epoch +1)
-            quit()
+            #quit()
 
         wcnt = 0

@@ -45,7 +45,15 @@ def spread_seeds(board, direction_tuple):
     return new_board
 
 def check_dandelion_win(board):  # check after every Dandelion turn                                                               
-    return all(cell in [1, 2] for row in board for cell in row)
+    # return all(cell in [1, 2] for row in board for cell in row)
+    # ^ above works fine, but checks every cell.
+    # more efficent to return early on any zero
+    for row in board:
+        for cell in row:
+            if cell == 0:
+                return False
+    return True
+
 
 def convert_user_input(row_str, col_str):
     row = int(row_str) - 1

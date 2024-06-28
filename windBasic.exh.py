@@ -21,7 +21,7 @@ INPUT_SIZE = NUM_DIR
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 20000
+EPOCHS = 50000
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.97  
@@ -136,8 +136,8 @@ for epoch in range(EPOCHS):
             #target_q_values = q_values_pred.clone()
             target_q_values[0, action] = bellman_right  # Update using Bellman equation
 
-            '''
-            if epoch > 1900:
+            
+            if epoch % 244 == 0:
                 print(f"     {orig_state=}")
                 print(f"         {action=}")
                 print(f"   {bellman_left=}")
@@ -146,7 +146,7 @@ for epoch in range(EPOCHS):
                 print(f"           {done=}")
                 print(f"  {bellman_right=}")
                 print(f"{target_q_values=} \n\n\n")
-            '''
+            
 
 
         ''' 
@@ -248,13 +248,12 @@ for epoch in range(EPOCHS):
         print(f"recent loss avg: {sum(rec_loss)/rec_loss_mod}")
 
 
-        '''
+        
         if wcnt > 99:
             good_pass_cnt += 1
         if good_pass_cnt > 5:
             print("got good by epoch", epoch +1)
-            quit()
-        '''
+            #quit()
 
         #quit()
         wcnt = 0

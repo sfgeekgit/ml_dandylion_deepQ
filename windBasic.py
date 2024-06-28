@@ -10,28 +10,31 @@ import torch.nn.functional as F
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game
+from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, dir_pairs #, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
 
 
-BOARD_HEIGHT = BOARD_WIDTH = 5  # will always be 5
+## BOARD_HEIGHT = BOARD_WIDTH = 5  # will always be 5
 
 
 LEARNING_RATE = 0.002
+# learning rate is steped down in the code scheduler = ReduceLROnPlateau...
 
 #EXPLORATION_PROB = 0.01
-EXPLORATION_PROB_STEPS = {15:0.2,   # first x percent of epochs -> y
+EXPLORATION_PROB_STEPS = {20:0.2,   # first x percent of epochs -> y
                           45:0.001,  # after x percent, etc
                           50:0}     
 
 NUM_DIR = 8 # will always be 8, but here for clarity
-INPUT_SIZE = NUM_DIR
+
+
+INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 20000
+EPOCHS = 10000
 
 # Gamma aka discount factor for future rewards or "Decay"
-GAMMA = 0.90  
+GAMMA = 0.97  
 
 reward_vals = {
     "win": 100, 
@@ -40,9 +43,10 @@ reward_vals = {
     "meh": 0
 }
 
+
 wcnt=0
 
-good_pass_cnt = 0
+#good_pass_cnt = 0
 
 class DQN(nn.Module):
     def __init__(self):
@@ -61,24 +65,41 @@ scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.75, patience=EPOCH
 
 
 def game_step(state, action):
-    #print(f"\nstate: {state}, action: {action}")
-    if state[action] == 1:
+
+    dir_list, board_grid = board_state_from_tensor(state)
+    # print(f" dir_list: {dir_list=}")
+    # print(f" board_grid: {board_grid=}")
+
+    if dir_list[action] == 1:
         return state, reward_vals['illegal'], 1  # Illegal move
-    new_state = state[:]
-    new_state[action] = 1
-    if sum(new_state) >= 7:  # wind has gone 7 times. Winner!
+    new_dir_list = dir_list[:]
+    new_dir_list[action] = 1
+
+
+    # spread seeds(action)
+    ##def spread_seeds(board, direction_tuple):
+
+    new_state = board_state_to_tensor(new_dir_list, board_grid )
+    # check dandelion win
+    dandelion_win = False # for now...  check_dandelion_win(board)
+    if dandelion_win:
+        return new_state, reward_vals['lose'], 1  # Game lost
+
+    # still here?
+    if sum(new_dir_list) >= 7:  # wind has gone 7 times. Winner!
         return new_state, reward_vals['win'], 1  # Game won
     else:
         #print("keep going")
+        #print(f"{new_state=}")
         return new_state, reward_vals['meh'], 0  # Continue game
 
 
 
-def board_state_to_tensor(available_directions, board):
+def board_state_to_tensor(direction_list, board):
     # 1st 8 cells are available directions
     # next 25 cells are dandelions
     # next 25 cells are seeds
-    direction_tensor = torch.tensor([1 if direction else 0 for direction in available_directions]).float()
+    direction_tensor = torch.tensor([1 if direction else 0 for direction in direction_list]).float()
     if BOARD_HEIGHT == 0:  # dev
         return direction_tensor 
     dandelion_tensor  = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
@@ -109,6 +130,11 @@ def board_state_from_tensor(tensor):
     #print(f"Board State From Tensor (should be directions, board) {out=}")
     return [direction_list, board]
 
+
+#        dir_tuple = dir_pairs[direction_names.index(chosen_direction)]
+#        board = spread_seeds(board, dir_tuple)
+
+
 ############### 
 # begin
 ############### 
@@ -117,7 +143,14 @@ rec_loss_mod, rec_loss_idx = 16, 0
 rec_loss = [0] * rec_loss_mod
 
 for epoch in range(EPOCHS):
-    state = [0] * NUM_DIR  # Initialize game state
+
+    used_dirs = [0] * NUM_DIR  # Initialize game state
+    board_grid = initialize_board()
+    # todo, have seeds make first move
+    state_tensor = board_state_to_tensor(used_dirs, board_grid)
+
+
+
 
 
     run_percent = (epoch + 1) / EPOCHS * 100
@@ -126,32 +159,24 @@ for epoch in range(EPOCHS):
             EXPLORATION_PROB = prob
             break
 
-    done = 0
+    done = False
 
     while not done:
-        #optimizer.zero_grad()  # should this be here???
-
         # Generate predictions
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
-        #with torch.no_grad():
+        q_values_pred = model(state_tensor)   # calls forward
+        q_values_pred = q_values_pred.unsqueeze(0)  # get correct tensor shape
+
         
-        #optimizer.zero_grad()  # should this be here???
-        q_values_pred = model(state_tensor)  # calls forward
-
-
-        # Generate Targets
-        orig_state = state
-        # init target_q_values to zeroes
+        # init target_q_values with zeroes
         target_q_values = torch.zeros(1, NUM_DIR)
 
+        # explore all actions (exhaustive checking for given state)
         for action in range(NUM_DIR):
-            next_state, reward, done = game_step(orig_state, action)
-            state = next_state
-            next_state_tensor = torch.FloatTensor(next_state).unsqueeze(0)
+            next_state, reward, done = game_step(state_tensor, action)
 
 
-            with torch.no_grad():                         # but don't set the gradients becase we will not call backward on this
-                next_q_values = model(next_state_tensor)  # calls forward()
+            with torch.no_grad():     # don't set the gradients becase we will not call backward on this
+                next_q_values = model(next_state)  # calls forward()
 
             max_next_q_value = torch.max(next_q_values).item()
             if done:
@@ -159,12 +184,10 @@ for epoch in range(EPOCHS):
             else:
                 bellman_right = reward + GAMMA * max_next_q_value  # This is the target value
 
-
-            #target_q_values = q_values_pred.clone()
             target_q_values[0, action] = bellman_right  # Update using Bellman equation
         # all actions checked
 
-        
+
         ## this should happen per step (not per epoch)
         optimizer.zero_grad()
         loss = F.mse_loss(q_values_pred, target_q_values) # oringinal code (whole tensor)
@@ -175,15 +198,15 @@ for epoch in range(EPOCHS):
 
         # prep for next iteration
         if random.random() < EXPLORATION_PROB:      # explore? 
-            expl = 'explore'
+            #expl = 'explore'
             action = random.randint(0, NUM_DIR-1)
         else:                                       # else exploit
-            expl = 'exploit'
+            #expl = 'exploit'
             action = torch.argmax(q_values_pred).item()
 
         #print("next action ", action)
-        next_state, reward, done = game_step(orig_state, action)
-        state = next_state
+        next_state, reward, done = game_step(state_tensor, action)
+        state_tensor = next_state
 
         if reward == reward_vals['win']:
             wcnt += 1
@@ -219,12 +242,9 @@ for epoch in range(EPOCHS):
 
 
     if (epoch ) % 100 == 0:
-
         learn_rate = optimizer.param_groups[0]['lr']
-
-
         print(f"\nEpoch {epoch}, run_perc {round(run_percent, 1)} {wcnt=} {EXPLORATION_PROB=} {learn_rate=} Most Recent Loss: {loss.item()}\n{q_values_pred=}")
-        #print(f"  {q_values_pred=}\n{target_q_values=}\n{state=}\n")
+        #print(f"  {q_values_pred=}\n{target_q_values=}\n")
         print(f"recent loss avg: {sum(rec_loss)/rec_loss_mod}")
 
 
@@ -236,7 +256,3 @@ for epoch in range(EPOCHS):
             #quit()
         '''
         wcnt = 0
-        
-    #if epoch > 99:
-    #    quit()
-

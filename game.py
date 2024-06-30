@@ -7,11 +7,12 @@ import copy
 
 
 BOARD_HEIGHT = BOARD_WIDTH = 5  # will always be 5
-LEARNING_RATE = 0.001
+NUM_DIR = 8 # number of directions
 
-INPUT_SIZE = BOARD_WIDTH * BOARD_HEIGHT * 2
-HIDDEN_SIZE = 100
-OUTPUT_SIZE = 8
+#LEARNING_RATE = 0.001
+#INPUT_SIZE = BOARD_WIDTH * BOARD_HEIGHT * 2
+#HIDDEN_SIZE = 100
+#OUTPUT_SIZE = 8
 
 def initialize_board():    
     return [[0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
@@ -24,6 +25,10 @@ def display_board_with_labels(board):
     print(col_labels)
     for i, row in enumerate(board):
         print(f"{i+1} {' '.join('*' if cell == 1 else '.' if cell == 2 else ' ' for cell in row)}")
+
+
+
+
 
 def place_dandelion(board, row, col):
     board[row][col] = 1

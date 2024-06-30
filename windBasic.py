@@ -20,10 +20,8 @@ import torch.nn.functional as F
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
-
-
-## BOARD_HEIGHT = BOARD_WIDTH = 5  # will always be 5
+from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win  #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
+from brainlib import board_state_to_tensor, board_state_from_tensor
 
 
 LEARNING_RATE = 0.002
@@ -31,17 +29,17 @@ LEARNING_RATE = 0.002
 
 #EXPLORATION_PROB = 0.01
 EXPLORATION_PROB_STEPS = {20:0.2,   # first x percent of epochs -> y
-                          45:0.001,  # after x percent, etc
+                          30:0.001,  # after x percent, etc
                           50:0}     
 
-NUM_DIR = 8 # will always be 8, but here for clarity
+#NUM_DIR = 8 # will always be 8, but here for clarity
 
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 50000
+EPOCHS = 150000
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.97  
@@ -49,7 +47,7 @@ GAMMA = 0.97
 reward_vals = {
     "win": 100, 
     "illegal": -100, 
-    "lose": -99,
+    "lose": -50,
     "meh": 0
 }
 
@@ -62,11 +60,13 @@ class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
-        self.fc2 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
 
     def forward(self, x):
         logits = F.relu(self.fc1(x))
-        logits = self.fc2(logits)
+        logits = F.relu(self.fc2(logits))
+        logits = self.fc3(logits)
         return logits
 
 model = DQN()
@@ -119,40 +119,6 @@ def ddlion_move(dir_list, board_grid):
     board_grid[x][y] = 1
     new_state = board_state_to_tensor(dir_list, board_grid)
     return new_state
-
-
-def board_state_to_tensor(direction_list, board):
-    # 1st 8 cells are available directions
-    # next 25 cells are dandelions
-    # next 25 cells are seeds
-    direction_tensor = torch.tensor([1 if direction else 0 for direction in direction_list]).float()
-    if BOARD_HEIGHT == 0:  # dev
-        return direction_tensor 
-    dandelion_tensor  = torch.tensor([[1 if cell == 1 else 0 for cell in row] for row in board]).view(-1).float()
-    seed_tensor       = torch.tensor([[1 if cell == 2 else 0 for cell in row] for row in board]).view(-1).float()
-    return torch.cat((direction_tensor, dandelion_tensor, seed_tensor))
-
-
-def board_state_from_tensor(tensor):
-    # 1st 8 cells are available directions
-    # next 25 cells are dandelions
-    # next 25 cells are seeds
-    direction_list = [1 if direction else 0 for direction in tensor[:NUM_DIR]]
-    grid_size = BOARD_WIDTH * BOARD_HEIGHT
-    dandelion_list  = tensor[NUM_DIR:NUM_DIR+grid_size].tolist()
-    seed_list       = tensor[NUM_DIR+grid_size:].tolist()
-    board = []
-    for row in range(BOARD_HEIGHT):
-        board.append([])
-        for col in range(BOARD_WIDTH):
-            board[row].append(0)
-    for row in range(BOARD_HEIGHT):
-        for col in range(BOARD_WIDTH):
-            if dandelion_list[row * BOARD_WIDTH + col] == 1.:
-                board[row][col] = 1
-            elif seed_list[row * BOARD_WIDTH + col] == 1.:
-                board[row][col] = 2    
-    return [direction_list, board]
 
 
 ############### 

@@ -147,6 +147,9 @@ def train_seeds():
                 wind_action = random.randint(0, NUM_DIR-1)
 
 
+            #exhaustive search of seed options, using one wind action
+            # perhaps maaaaybe should pick best of worst. do exhaustive of exhaustive, check all wind options, and take the worst (for seed)
+            # ^^ that would be vs an "ideal" opponent, instead of random ("ideal" with only one move look ahead)
             for action in range(OUTPUT_SIZE):
                 next_state, result, done = game_step(board_state_tensor, action, wind_action)
                 reward_val = reward_vals[result]

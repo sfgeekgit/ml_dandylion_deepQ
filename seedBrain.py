@@ -84,7 +84,7 @@ def game_step(board_state_tensor, action, wind_action = None):
 
 
     # still here? Meh.
-    new_state = board_state_to_tensor(dir_list, board_grid)
+    new_state = board_state_to_tensor(dir_list, board_grid, device)
     result = 'meh'
     done = 0
 
@@ -119,7 +119,7 @@ def train_seeds():
         # Initialize game state in tensor
         used_dirs = [0] * NUM_DIR  
         board_grid = initialize_board()
-        board_state_tensor = board_state_to_tensor(used_dirs, board_grid).to(device)
+        board_state_tensor = board_state_to_tensor(used_dirs, board_grid, device)  # Pass device here
 
         mv_cnt = 0  # just for dev tracking
 

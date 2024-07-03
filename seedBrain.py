@@ -33,12 +33,16 @@ reward_vals = {
 }
 
 
+# Check if CUDA is available and set the default device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
         self.fc2 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
         # just to start. Will probably add at least one more layer
+        self.to(device)
 
 
     def forward(self, x):
@@ -46,10 +50,11 @@ class DQN(nn.Module):
         x = self.fc2(x)
         return x
 
-seedbrain = DQN()
+seedbrain = DQN().to(device)  
 optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
 
 def game_step(board_state_tensor, action, wind_action = None):
+    board_state_tensor = board_state_tensor.to(device)
     #new_state, result, done = game_step(board_state_tensor, action)
     dir_list, board_grid = board_state_from_tensor(board_state_tensor)
 
@@ -114,7 +119,7 @@ def train_seeds():
         # Initialize game state in tensor
         used_dirs = [0] * NUM_DIR  
         board_grid = initialize_board()
-        board_state_tensor = board_state_to_tensor(used_dirs, board_grid)
+        board_state_tensor = board_state_to_tensor(used_dirs, board_grid).to(device)
 
         mv_cnt = 0  # just for dev tracking
 
@@ -136,7 +141,7 @@ def train_seeds():
 
             ### init target q values
             ##target_q_values = q_values_pred.clone()  # just make with zeros() for exhaustive
-            target_q_values = torch.zeros(1, OUTPUT_SIZE)
+            target_q_values = torch.zeros(1, OUTPUT_SIZE).to(device)
             
             # choose one wind action and apply to all actions in exhaustive search
             # This is good for version 1, where opponent is random anyway
@@ -148,7 +153,7 @@ def train_seeds():
 
 
             #exhaustive search of seed options, using one wind action
-            # perhaps maaaaybe should pick best of worst. do exhaustive of exhaustive, check all wind options, and take the worst (for seed)
+            # perhaps maaaaybe should pick "best of worst" do exhaustive of exhaustive. For each seed action, check all wind options, and take the worst (for seed)
             # ^^ that would be vs an "ideal" opponent, instead of random ("ideal" with only one move look ahead)
             for action in range(OUTPUT_SIZE):
                 next_state, result, done = game_step(board_state_tensor, action, wind_action)
@@ -206,4 +211,3 @@ def train_seeds():
 
 if __name__ == "__main__":
     train_seeds()
-

@@ -16,7 +16,7 @@ EXPLORATION_PROB_STEPS = {20:0.2,   # first x percent of epochs -> y
                           50:0}     
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
-HIDDEN_SIZE = INPUT_SIZE # * 2
+HIDDEN_SIZE = INPUT_SIZE * 2
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
 EPOCHS = 15001
@@ -33,25 +33,25 @@ reward_vals = {
 }
 
 
-# Check if CUDA is available and set the default device
+#BATCH_SIZE = 4 # Dev. Probably make bigger like 32 or more
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
-        self.fc2 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
         # just to start. Will probably add at least one more layer
         self.to(device)
 
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
-
-seedbrain = DQN().to(device)  
-optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
 
 def game_step(board_state_tensor, action, wind_action = None):
     board_state_tensor = board_state_tensor.to(device)
@@ -115,7 +115,13 @@ def train_seeds():
 
     w_cnt = l_cnt =  0
 
-    for epoch in range(EPOCHS):            
+    for epoch in range(EPOCHS):
+
+        #used_dirs_batch = torch.zeros((BATCH_SIZE, NUM_DIR), dtype=torch.float32, device=device)
+        #board_grid_batch = torch.zeros((BATCH_SIZE, BOARD_HEIGHT * BOARD_WIDTH), dtype=torch.float32, device=device)
+
+
+
         # Initialize game state in tensor
         used_dirs = [0] * NUM_DIR  
         board_grid = initialize_board()
@@ -160,7 +166,7 @@ def train_seeds():
                 reward_val = reward_vals[result]
 
                 with torch.no_grad():
-                    next_q_values = seedbrain(next_state)
+                    next_q_values = seedbrain(next_state)  # calls forward
                 max_next_q_value = torch.max(next_q_values).item()
 
                 if done:
@@ -188,7 +194,7 @@ def train_seeds():
             if random.random() < EXPLORATION_PROB:  # explore
                 action = random.randint(0, OUTPUT_SIZE-1)
             else:                                   # exploit best guess
-                action = seedbrain(board_state_tensor).argmax().item()
+                action = seedbrain(board_state_tensor).argmax().item()  # calls forward
 
             # take action, set board for next step
             next_state, result, done = game_step(board_state_tensor, action)
@@ -197,17 +203,23 @@ def train_seeds():
             mv_cnt += 1  # just for dev accounting
 
         if result == "win":
-            print("W", end="")
+            #print("W", end="")
             w_cnt += 1
         if result == "lose":    
-            print("L", end="")
+            #print("L", end="")
             l_cnt += 1
 
-        if epoch % 100 == 0:
-            print(f"\n{epoch=} , r%{round(run_percent, 1)} {w_cnt=} {l_cnt=} w+l:--{w_cnt+l_cnt}-- (rec) {result=} {EXPLORATION_PROB=} loss {round(loss.item(), 4)}")
+        e_mod = 400
+        if epoch % e_mod == 0:
+            wperc = int(w_cnt / e_mod * 100)
+            print ("W" * wperc)
+            print(f"{epoch=} r%{round(run_percent, 1)} {wperc=} {w_cnt=} {l_cnt=} w+l={w_cnt+l_cnt}= EXP {EXPLORATION_PROB} recloss {round(loss.item(), 4)}")
             w_cnt = l_cnt = 0
         mv_cnt = 0
 
 
 if __name__ == "__main__":
+
+    seedbrain = DQN().to(device)  
+    optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
     train_seeds()

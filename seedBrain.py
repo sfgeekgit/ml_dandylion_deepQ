@@ -11,15 +11,15 @@ from brainlib import board_state_to_tensor, board_state_from_tensor
 LEARNING_RATE = 0.002
 
 EXPLORATION_PROB = 0.01
-EXPLORATION_PROB_STEPS = {20:0.2,   # first x percent of epochs -> y
-                          30:0.001,  # after x percent, etc
+EXPLORATION_PROB_STEPS = {33:0.2,   # first x percent of epochs -> y
+                          35:0.001,  # after x percent, etc
                           50:0}     
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE * 2
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
-EPOCHS = 15001
+EPOCHS = 25001
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.99  
@@ -28,8 +28,8 @@ GAMMA = 0.99
 reward_vals = {
     "win": 100, 
     "illegal": -100, 
-    "lose": -70,
-    "meh": 5 
+    "lose": -85,
+    "meh": 10 
 }
 
 
@@ -51,6 +51,7 @@ class DQN(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        #x = self.fc2(x)
         return x
 
 def game_step(board_state_tensor, action, wind_action = None):
@@ -119,7 +120,8 @@ def train_seeds():
 
         #used_dirs_batch = torch.zeros((BATCH_SIZE, NUM_DIR), dtype=torch.float32, device=device)
         #board_grid_batch = torch.zeros((BATCH_SIZE, BOARD_HEIGHT * BOARD_WIDTH), dtype=torch.float32, device=device)
-
+        q_values_pred_batch = []
+        target_q_values_batch = []
 
 
         # Initialize game state in tensor
@@ -141,8 +143,14 @@ def train_seeds():
         while not done:
             # generate prediction
             q_values_pred = seedbrain(board_state_tensor)  # calls forward()
+
+            # is this needed with batch? Try commenting it out
             q_values_pred = q_values_pred.unsqueeze(0)  # get correct tensor shape 
+
+
             # to maybe do: Explore batches
+            q_values_pred_batch.append(q_values_pred)
+
 
 
             ### init target q values
@@ -179,14 +187,23 @@ def train_seeds():
             # all actions checked
             # now we have bellman_right for every action stored in target_q_values
 
+            # add to batch??
+            #print(f"{target_q_values=}")
+            #print(f"{q_values_pred=}")
+            #quit()
+            
+            #don't do this?
+            #target_q_values = target_q_values.unsqueeze(0) 
 
-            # Learning step
-            # this should happen per move (not per epoch)
-            # todo, maybe this could be batched???? Batch and run once per epoch? (on GPU)
-            optimizer.zero_grad()
-            loss = F.mse_loss(q_values_pred, target_q_values) 
-            loss.backward()
-            optimizer.step()
+            target_q_values_batch.append(target_q_values)
+
+            # # Learning step
+            # # this should happen per move (not per epoch)
+            # # todo, maybe this could be batched???? Batch and run once per epoch? (on GPU)
+            # optimizer.zero_grad()
+            # loss = F.mse_loss(q_values_pred, target_q_values) 
+            # loss.backward()
+            # optimizer.step()
 
 
             
@@ -202,6 +219,29 @@ def train_seeds():
 
             mv_cnt += 1  # just for dev accounting
 
+        #########
+        q_values_pred_batch = torch.cat(q_values_pred_batch, dim=0)
+        #print(f"{q_values_pred_batch=}")
+        target_q_values_batch = torch.cat(target_q_values_batch, dim=0)
+        #print(f"{target_q_values_batch=}")
+        #quit()
+        #target_q_values_batch = torch.tensor(target_q_values_batch, device=device)
+
+
+        # Calculate loss for the entire batch
+        loss = F.mse_loss(q_values_pred_batch, target_q_values_batch)
+
+
+        # Learning step
+        # Testing. move this to batch once per epoch
+        optimizer.zero_grad()
+        #loss = F.mse_loss(q_values_pred, target_q_values) 
+        loss = F.mse_loss(q_values_pred_batch, target_q_values_batch) 
+        loss.backward()
+        optimizer.step()
+
+
+
         if result == "win":
             #print("W", end="")
             w_cnt += 1
@@ -209,7 +249,7 @@ def train_seeds():
             #print("L", end="")
             l_cnt += 1
 
-        e_mod = 400
+        e_mod = 1000
         if epoch % e_mod == 0:
             wperc = int(w_cnt / e_mod * 100)
             print ("W" * wperc)

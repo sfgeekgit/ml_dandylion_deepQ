@@ -11,15 +11,15 @@ from brainlib import board_state_to_tensor, board_state_from_tensor
 LEARNING_RATE = 0.002
 
 EXPLORATION_PROB = 0.01
-EXPLORATION_PROB_STEPS = {33:0.2,   # first x percent of epochs -> y
-                          35:0.001,  # after x percent, etc
-                          50:0}     
+EXPLORATION_PROB_STEPS = {43:0.2,   # first x percent of epochs -> y
+                          48:0.001,  # after x percent, etc
+                          60:0}     
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE * 2
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
-EPOCHS = 25001
+EPOCHS = 55001 
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.99  
@@ -29,7 +29,7 @@ reward_vals = {
     "win": 100, 
     "illegal": -100, 
     "lose": -85,
-    "meh": 10 
+    "meh": 3 
 }
 
 
@@ -46,6 +46,15 @@ class DQN(nn.Module):
         # just to start. Will probably add at least one more layer
         self.to(device)
 
+        '''
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
+        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc3 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+        # just to start. Will probably add at least one more layer
+        self.to(device)
+        '''
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -53,6 +62,15 @@ class DQN(nn.Module):
         x = self.fc3(x)
         #x = self.fc2(x)
         return x
+
+        '''
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
+        #x = self.fc2(x)
+        return x
+        '''
 
 def game_step(board_state_tensor, action, wind_action = None):
     board_state_tensor = board_state_tensor.to(device)
@@ -249,13 +267,14 @@ def train_seeds():
             #print("L", end="")
             l_cnt += 1
 
-        e_mod = 1000
+        e_mod = 100
         if epoch % e_mod == 0:
             wperc = int(w_cnt / e_mod * 100)
-            print ("W" * wperc)
+            print ("w" * wperc)
             print(f"{epoch=} r%{round(run_percent, 1)} {wperc=} {w_cnt=} {l_cnt=} w+l={w_cnt+l_cnt}= EXP {EXPLORATION_PROB} recloss {round(loss.item(), 4)}")
             w_cnt = l_cnt = 0
-        mv_cnt = 0
+        
+            mv_cnt = 0
 
 
 if __name__ == "__main__":

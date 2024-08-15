@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import os
 
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
 from brainlib import board_state_to_tensor, board_state_from_tensor
@@ -10,16 +11,21 @@ from brainlib import board_state_to_tensor, board_state_from_tensor
 
 LEARNING_RATE = 0.002
 
-EXPLORATION_PROB = 0.01
-EXPLORATION_PROB_STEPS = {43:0.2,   # first x percent of epochs -> y
-                          48:0.001,  # after x percent, etc
-                          60:0}     
+EXPLORATION_PROB = 0.00 # will be set by steps (default to zero set below after all steps)
+EXPLORATION_PROB_STEPS = {4.0:0.2,     # first x percent of epochs -> y
+                          4.5:0.1, # until x percent, etc
+                          5.5:0.0, # until x percent, etc
+                          7.0:0.1,  # until x percent, etc
+                          8.0:0.0,  # until x percent, etc
+                          8.5:0.05,  # until x percent, etc
+                        }
 
-INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
+INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)#
 HIDDEN_SIZE = INPUT_SIZE * 2
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
-EPOCHS = 55001 
+# seedbrain (with 3 layers, other current settings) seems to take about 300K epochs to train to a win rate over 90% vs random.
+EPOCHS = 820000
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.99  
@@ -39,13 +45,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class DQN(nn.Module):
     def __init__(self):
+        '''
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
         self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
         # just to start. Will probably add at least one more layer
         self.to(device)
-
         '''
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
@@ -54,23 +60,22 @@ class DQN(nn.Module):
         self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
         # just to start. Will probably add at least one more layer
         self.to(device)
-        '''
+        
 
     def forward(self, x):
+        '''
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         #x = self.fc2(x)
         return x
-
         '''
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
-        #x = self.fc2(x)
         return x
-        '''
+        
 
 def game_step(board_state_tensor, action, wind_action = None):
     board_state_tensor = board_state_tensor.to(device)
@@ -133,6 +138,8 @@ def wind_move(direction_list, board_grid, new_dir = None):
 def train_seeds():
 
     w_cnt = l_cnt =  0
+    mv_cnt = 0  # just for dev tracking
+    loss_recents = []
 
     for epoch in range(EPOCHS):
 
@@ -147,7 +154,6 @@ def train_seeds():
         board_grid = initialize_board()
         board_state_tensor = board_state_to_tensor(used_dirs, board_grid, device)  # Pass device here
 
-        mv_cnt = 0  # just for dev tracking
 
         EXPLORATION_PROB = 0
         run_percent = (epoch + 1) / EPOCHS * 100
@@ -246,8 +252,8 @@ def train_seeds():
         #target_q_values_batch = torch.tensor(target_q_values_batch, device=device)
 
 
-        # Calculate loss for the entire batch
-        loss = F.mse_loss(q_values_pred_batch, target_q_values_batch)
+        # I think this is a dupe? commenting out. 
+        #loss = F.mse_loss(q_values_pred_batch, target_q_values_batch)
 
 
         # Learning step
@@ -267,18 +273,74 @@ def train_seeds():
             #print("L", end="")
             l_cnt += 1
 
-        e_mod = 100
+        loss_recents.append(loss.item())
+
+        e_mod = 400
         if epoch % e_mod == 0:
+                        
+            loss_recents.sort()
+            median_loss = loss_recents[len(loss_recents)//2]
+            
+
             wperc = int(w_cnt / e_mod * 100)
             print ("w" * wperc)
-            print(f"{epoch=} r%{round(run_percent, 1)} {wperc=} {w_cnt=} {l_cnt=} w+l={w_cnt+l_cnt}= EXP {EXPLORATION_PROB} recloss {round(loss.item(), 4)}")
+            print(f"{epoch=} r%{round(run_percent, 1)} {wperc=} {w_cnt=} {l_cnt=} w+l={w_cnt+l_cnt} {mv_cnt=} EXP {EXPLORATION_PROB} MedLoss {round(median_loss, 4)}")
             w_cnt = l_cnt = 0
-        
+
+
+            loss_recents=[]
             mv_cnt = 0
 
+
+def get_next_model_subdir(base_dir="models"):
+    # Ensure the base directory exists
+    os.makedirs(base_dir, exist_ok=True)
+    
+    # Count the number of existing subdirectories
+    existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    next_subdir_num = len(existing_subdirs) + 1
+    
+    # Format the next subdirectory name
+    next_subdir_name = f"{next_subdir_num:03d}"
+    
+    return os.path.join(base_dir, next_subdir_name), next_subdir_num
+
+def save_parameters(subdir, subdir_num, params):
+    params_filename = f"params{subdir_num:03d}.py"
+    params_filepath = os.path.join(subdir, params_filename)
+    
+    with open(params_filepath, 'w') as f:
+        for key, value in params.items():
+            f.write(f"{key} = {repr(value)}\n")
+    print(f"Parameters saved to {params_filepath}")
 
 if __name__ == "__main__":
 
     seedbrain = DQN().to(device)  
     optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
     train_seeds()
+
+    # Get the next model subdirectory
+    model_subdir, subdir_num = get_next_model_subdir()
+    os.makedirs(model_subdir, exist_ok=True)
+
+    # Save the model
+    model_save_path = os.path.join(model_subdir, "seedbrain.pth")
+    torch.save(seedbrain.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
+
+    # Save the parameters
+    params = {
+        "EPOCHS": EPOCHS,
+        "GAMMA": GAMMA,
+        "reward_vals": reward_vals,
+        "LAYER_CNT": 4, # manually hard coded for now
+        "LAYERS": [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE], # manually hard coded for now
+        "LEARNING_RATE": LEARNING_RATE,
+        "EXPLORATION_PROB_STEPS": EXPLORATION_PROB_STEPS,
+        "INPUT_SIZE": INPUT_SIZE,
+        "HIDDEN_SIZE": HIDDEN_SIZE,
+        "OUTPUT_SIZE": OUTPUT_SIZE,
+        "device": device.type
+    }
+    save_parameters(model_subdir, subdir_num, params)

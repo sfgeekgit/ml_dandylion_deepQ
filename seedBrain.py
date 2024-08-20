@@ -12,12 +12,14 @@ from brainlib import board_state_to_tensor, board_state_from_tensor
 LEARNING_RATE = 0.002
 
 EXPLORATION_PROB = 0.00 # will be set by steps (default to zero set below after all steps)
-EXPLORATION_PROB_STEPS = {4.0:0.2,     # first x percent of epochs -> y
-                          4.5:0.1, # until x percent, etc
-                          5.5:0.0, # until x percent, etc
-                          7.0:0.1,  # until x percent, etc
-                          8.0:0.0,  # until x percent, etc
-                          8.5:0.05,  # until x percent, etc
+EXPLORATION_PROB_STEPS = {10.0:0.2,     # first x percent of epochs -> y
+                          12.0:0.1,     # until x percent, etc
+                          15.0:0.0,     # until x percent, etc
+                          17.0:0.1,
+                          18.0:0.0,
+                          18.5:0.05,
+                          28.0:0.0, 
+                          29.5:0.05,
                         }
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)#
@@ -25,10 +27,11 @@ HIDDEN_SIZE = INPUT_SIZE * 2
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
 # seedbrain (with 3 layers, other current settings) seems to take about 300K epochs to train to a win rate over 90% vs random.
-EPOCHS = 820000
+EPOCHS = 1620000
+
 
 # Gamma aka discount factor for future rewards or "Decay"
-GAMMA = 0.99  
+GAMMA = 0.98  
 
 
 reward_vals = {
@@ -42,6 +45,21 @@ reward_vals = {
 #BATCH_SIZE = 4 # Dev. Probably make bigger like 32 or more
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+'''
+Weird. Trying with 5 layers, new behavior that never happened with 3 or 4
+This happens maybe half the time? Not always. (I think, havn't finished a run yet)
+It starts to learn, but then suddenly the loss goes up to like e24 and never commes back down.
+Seems to be lead by the target q values getting bigger and biggger and the preds following.
+Maybe a softmax or something would help...
+Seems like the pred values go too high (positive) not negative. Maybe a bigger gamma???
+yeah... seems like when the preds get too far negative it coorects itself?
+That also fits with it going off the rails when it starts winning a few games.
+(confirmed from repeat observations)
+Above was all with gamma = 0.99 and 5 layers.
+Now trying gamma = .97 5 layers...  (well, first run did the exact same thing..)
+
+'''
 
 class DQN(nn.Module):
     def __init__(self):
@@ -57,8 +75,8 @@ class DQN(nn.Module):
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
         self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc3 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        #self.fc4 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
-        # just to start. Will probably add at least one more layer
         self.to(device)
         
 
@@ -73,6 +91,7 @@ class DQN(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
+        #x = F.relu(self.fc4(x))
         x = self.fc4(x)
         return x
         
@@ -274,9 +293,16 @@ def train_seeds():
             l_cnt += 1
 
         loss_recents.append(loss.item())
+        '''
+        if loss.item() > 2000:
+                print(f"\n--\n Loss exploding?  {epoch=}")
+                print(f"{loss.item()=}")
+                print(f"{q_values_pred_batch=} \n {target_q_values_batch=}")
+        '''
 
-        e_mod = 400
+        e_mod = 100
         if epoch % e_mod == 0:
+
                         
             loss_recents.sort()
             median_loss = loss_recents[len(loss_recents)//2]
@@ -285,21 +311,34 @@ def train_seeds():
             wperc = int(w_cnt / e_mod * 100)
             print ("w" * wperc)
             print(f"{epoch=} r%{round(run_percent, 1)} {wperc=} {w_cnt=} {l_cnt=} w+l={w_cnt+l_cnt} {mv_cnt=} EXP {EXPLORATION_PROB} MedLoss {round(median_loss, 4)}")
-            w_cnt = l_cnt = 0
+            #print(f"{q_values_pred_batch=} \n {target_q_values_batch=}")
 
+            if median_loss > 987654321012:
+                print("Loss exploded!")
+                print(f"{q_values_pred_batch=} \n {target_q_values_batch=}")
+                quit()
 
+            w_cnt = l_cnt = mv_cnt = 0
             loss_recents=[]
-            mv_cnt = 0
+
 
 
 def get_next_model_subdir(base_dir="models"):
     # Ensure the base directory exists
     os.makedirs(base_dir, exist_ok=True)
     
-    # Count the number of existing subdirectories
+    ## Count the number of existing subdirectories
+    #existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    #next_subdir_num = len(existing_subdirs) + 1
+
+
     existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-    next_subdir_num = len(existing_subdirs) + 1
-    
+    numeric_subdirs = sorted([int(d) for d in existing_subdirs if d.isdigit()])
+    if numeric_subdirs:
+        next_subdir_num = numeric_subdirs[-1] + 1
+    else:
+        next_subdir_num = 1
+
     # Format the next subdirectory name
     next_subdir_name = f"{next_subdir_num:03d}"
     
@@ -320,11 +359,9 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
     train_seeds()
 
-    # Get the next model subdirectory
+    # Save the model
     model_subdir, subdir_num = get_next_model_subdir()
     os.makedirs(model_subdir, exist_ok=True)
-
-    # Save the model
     model_save_path = os.path.join(model_subdir, "seedbrain.pth")
     torch.save(seedbrain.state_dict(), model_save_path)
     print(f"Model saved to {model_save_path}")

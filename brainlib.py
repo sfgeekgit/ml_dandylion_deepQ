@@ -4,6 +4,14 @@ import torch
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR
 
 def board_state_to_tensor(direction_list, board, device=None):
+
+    # it's unclear to me if the direction list is the USED or the UNUSED directions
+    # Check this and check EVERYwhere it is used to make sure it is used correctly.
+    # (it's possible one trained one way and the other trained the other way..
+    # which would work for self training but not for self play)
+
+
+
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         

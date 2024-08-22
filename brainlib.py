@@ -1,4 +1,5 @@
 import torch
+import os
 
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR
 
@@ -43,3 +44,28 @@ def board_state_from_tensor(tensor, device=None):
                 board[row][col] = 2    
     return [used_direction_list, board]
 
+
+def get_next_model_subdir(base_dir="models"):
+    # Ensure the base directory exists
+    os.makedirs(base_dir, exist_ok=True)
+
+    existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    numeric_subdirs = sorted([int(d) for d in existing_subdirs if d.isdigit()])
+    if numeric_subdirs:
+        next_subdir_num = numeric_subdirs[-1] + 1
+    else:
+        next_subdir_num = 1
+
+    # Format the next subdirectory name
+    next_subdir_name = f"{next_subdir_num:03d}"
+    
+    return os.path.join(base_dir, next_subdir_name), next_subdir_num
+
+def save_parameters(subdir, subdir_num, params):
+    params_filename = f"params{subdir_num:03d}.py"
+    params_filepath = os.path.join(subdir, params_filename)
+    
+    with open(params_filepath, 'w') as f:
+        for key, value in params.items():
+            f.write(f"{key} = {repr(value)}\n")
+    print(f"Parameters saved to {params_filepath}")

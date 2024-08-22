@@ -7,8 +7,8 @@ import os
 
 
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
-from brainlib import board_state_to_tensor, board_state_from_tensor
-
+#from brainlib import board_state_to_tensor, board_state_from_tensor
+from brainlib import *
 
 LEARNING_RATE = 0.002
 
@@ -324,35 +324,6 @@ def train_seeds():
 
 
 
-def get_next_model_subdir(base_dir="models"):
-    # Ensure the base directory exists
-    os.makedirs(base_dir, exist_ok=True)
-    
-    ## Count the number of existing subdirectories
-    #existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-    #next_subdir_num = len(existing_subdirs) + 1
-
-
-    existing_subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-    numeric_subdirs = sorted([int(d) for d in existing_subdirs if d.isdigit()])
-    if numeric_subdirs:
-        next_subdir_num = numeric_subdirs[-1] + 1
-    else:
-        next_subdir_num = 1
-
-    # Format the next subdirectory name
-    next_subdir_name = f"{next_subdir_num:03d}"
-    
-    return os.path.join(base_dir, next_subdir_name), next_subdir_num
-
-def save_parameters(subdir, subdir_num, params):
-    params_filename = f"params{subdir_num:03d}.py"
-    params_filepath = os.path.join(subdir, params_filename)
-    
-    with open(params_filepath, 'w') as f:
-        for key, value in params.items():
-            f.write(f"{key} = {repr(value)}\n")
-    print(f"Parameters saved to {params_filepath}")
 
 if __name__ == "__main__":
 
@@ -361,7 +332,7 @@ if __name__ == "__main__":
     train_seeds()
 
     # Save the model
-    model_subdir, subdir_num = get_next_model_subdir()
+    model_subdir, subdir_num = get_next_model_subdir("models/seeds")
     os.makedirs(model_subdir, exist_ok=True)
     model_save_path = os.path.join(model_subdir, "seedbrain.pth")
     torch.save(seedbrain.state_dict(), model_save_path)

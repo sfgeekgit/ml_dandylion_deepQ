@@ -79,7 +79,9 @@ def validate_direction_input(direction_str, available_directions):
     return direction_str.upper() in available_directions
 
 
-def get_human_wind_move(board, available_directions):
+def get_human_wind_move(board, used_directions): 
+    available_directions = [direction_names[i] for i in range(len(direction_names)) if not used_directions[i]]
+
     print("Wind's Turn:")
     display_board_with_labels(board)
     print('Available directions:', available_directions)
@@ -89,14 +91,16 @@ def get_human_wind_move(board, available_directions):
         print("Invalid or unavailable direction. Please choose again.")
         chosen_direction = input('Choose a direction to blow the wind: ').upper()
 
-    available_directions.remove(chosen_direction)
     dir_tuple = dir_pairs[direction_names.index(chosen_direction)]
+    used_directions[direction_names.index(chosen_direction)] = 1
     return dir_tuple
 
 
 def play_game():
     board = initialize_board()
     available_directions = direction_names.copy()
+    used_directions = [0] * NUM_DIR 
+
 
     # Main game loop                                                                                                              
     for turn in range(7):
@@ -123,7 +127,7 @@ def play_game():
             break
 
 
-        dir_tuple = get_human_wind_move(board, available_directions)
+        dir_tuple = get_human_wind_move(board, used_directions)
         board = spread_seeds(board, dir_tuple)
 
     # Check for win condition if the game wasn't already won                                                                      

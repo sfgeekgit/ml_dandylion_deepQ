@@ -1,6 +1,7 @@
 import os
 import torch
-from game import initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, BOARD_WIDTH, BOARD_HEIGHT, get_human_wind_move
+#from game import initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, BOARD_WIDTH, BOARD_HEIGHT, get_human_wind_move
+from game import *
 from seedBrain import DQN
 from brainlib import board_state_to_tensor #, board_state_from_tensor
 
@@ -17,9 +18,6 @@ def load_model(model_dir):
 
 def seedbrain_move(used_dirs, board, model):
     # Convert the board to a tensor and get the model's move
-    used_dirs = [0] * len(dir_pairs)  # Assuming no directions have been used yet
-    # just for now. Need to update this to actually use the available directions
-
     # board_state_to_tensor needs list of USED directions.
 
     board_tensor = board_state_to_tensor(used_dirs, board, device=torch.device("cpu"))
@@ -39,7 +37,8 @@ def play_game_against_seedbrain():
 
 
     board = initialize_board()
-    available_directions = direction_names.copy()
+    available_direction_names = direction_names.copy()
+    used_directions = [0] * len(direction_names)
 
     #avail_directions = [1] * 8
     #print(f"Available directions: {avail_directions}")
@@ -47,8 +46,8 @@ def play_game_against_seedbrain():
     # Main game loop
     for turn in range(7):        
         # Seedbrain makes a move
-        print(f"Available directions: {available_directions}")
-        row, col = seedbrain_move(available_directions, board, seedbrain)
+        print(f"Available directions: {available_direction_names}")
+        row, col = seedbrain_move(used_directions, board, seedbrain)
 
         # check if the board already has a dandelion at that location
         if board[row][col] == 1:
@@ -63,7 +62,8 @@ def play_game_against_seedbrain():
             break
         
         print("Wind's turn. Try to NOT spread the seeds.")
-        dir_tuple = get_human_wind_move(board, available_directions)
+        #dir_tuple = get_human_wind_move(board, available_direction_names)
+        dir_tuple = get_human_wind_move(board, used_directions)
         board = spread_seeds(board, dir_tuple)
     display_board_with_labels(board)
     print("Game over.")

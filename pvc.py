@@ -6,7 +6,7 @@ from brainlib import board_state_to_tensor #, board_state_from_tensor
 
 # TODO
 # check the available directions and pass them to the model
-
+# the tensor needs to be feed the USED direction list
 
 def load_model(model_dir):
     model = DQN()
@@ -17,11 +17,10 @@ def load_model(model_dir):
 
 def seedbrain_move(used_dirs, board, model):
     # Convert the board to a tensor and get the model's move
-    avail_dirs = [0] * len(dir_pairs)  # Assuming no directions have been used yet
-    used_dirs = avail_dirs.copy()
+    used_dirs = [0] * len(dir_pairs)  # Assuming no directions have been used yet
     # just for now. Need to update this to actually use the available directions
 
-    # board_state_to_tensor needs list of USED directions. Or... which is it?
+    # board_state_to_tensor needs list of USED directions.
 
     board_tensor = board_state_to_tensor(used_dirs, board, device=torch.device("cpu"))
     with torch.no_grad():

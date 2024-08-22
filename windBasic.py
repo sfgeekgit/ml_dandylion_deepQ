@@ -13,7 +13,6 @@ Plays vs an opponent that randomly places seeds.
 after 20,000 training epochs, it consistantly wins over 95% of the time (vs a dumb random opponent)
 '''
 
-
 import torch
 import torch.nn as nn 
 import torch.nn.functional as F
@@ -40,6 +39,7 @@ HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
 EPOCHS = 150000
+EPOCHS = 1000
 
 # Gamma aka discount factor for future rewards or "Decay"
 GAMMA = 0.97  
@@ -75,14 +75,14 @@ scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.75, patience=EPOCH
 
 
 def game_step(state, action):
-    dir_list, board_grid = board_state_from_tensor(state)
+    used_dir_list, board_grid = board_state_from_tensor(state)
 
     # check if action is legal
-    if dir_list[action] == 1:
+    if used_dir_list[action] == 1:
         return state, reward_vals['illegal'], 1  # Illegal move
  
-    new_dir_list = dir_list[:]
-    new_dir_list[action] = 1
+    new_used_dir_list = used_dir_list[:]
+    new_used_dir_list[action] = 1
 
     # spread seeds
     dir_tuple = dir_pairs[action]
@@ -92,16 +92,16 @@ def game_step(state, action):
     # check if dandelion wins
     dandelion_win = check_dandelion_win(board_grid)
     if dandelion_win:
-        new_state = board_state_to_tensor(new_dir_list, board_grid)
+        new_state = board_state_to_tensor(new_used_dir_list, board_grid)
         return new_state, reward_vals['lose'], 1  # Game lost
 
     # still here? Did I win?
-    if sum(new_dir_list) >= 7:  # wind has gone 7 times. Winner!
-        new_state = board_state_to_tensor(new_dir_list, board_grid)
+    if sum(new_used_dir_list) >= 7:  # wind has gone 7 times. Winner!
+        new_state = board_state_to_tensor(new_used_dir_list, board_grid)
         return new_state, reward_vals['win'], 1  # Game won
 
     # ddlion move
-    new_state = ddlion_move(new_dir_list, board_grid)
+    new_state = ddlion_move(new_used_dir_list, board_grid)
 
     # check again if dandelion wins (After ddlion move)
     dandelion_win = check_dandelion_win(board_grid)
@@ -112,12 +112,12 @@ def game_step(state, action):
     return new_state, reward_vals['meh'], 0  # Continue game
 
 
-def ddlion_move(dir_list, board_grid):
+def ddlion_move(used_dir_list, board_grid):
     # make a random move for now
     x=random.randint(0, BOARD_HEIGHT-1)
     y=random.randint(0, BOARD_WIDTH-1)
     board_grid[x][y] = 1
-    new_state = board_state_to_tensor(dir_list, board_grid)
+    new_state = board_state_to_tensor(used_dir_list, board_grid)
     return new_state
 
 

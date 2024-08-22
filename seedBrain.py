@@ -5,6 +5,7 @@ import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import os
 
+
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
 from brainlib import board_state_to_tensor, board_state_from_tensor
 
@@ -99,7 +100,7 @@ class DQN(nn.Module):
 def game_step(board_state_tensor, action, wind_action = None):
     board_state_tensor = board_state_tensor.to(device)
     #new_state, result, done = game_step(board_state_tensor, action)
-    dir_list, board_grid = board_state_from_tensor(board_state_tensor)
+    used_dir_list, board_grid = board_state_from_tensor(board_state_tensor)
 
     place_row = action//BOARD_WIDTH
     place_col = action%BOARD_WIDTH
@@ -112,7 +113,7 @@ def game_step(board_state_tensor, action, wind_action = None):
     board_grid[place_row][place_col] = 1    
 
     # wind blows. Check dandelion win. If not win, check wind win.
-    dir_list, board_grid = wind_move(dir_list, board_grid, wind_action)
+    used_dir_list, board_grid = wind_move(used_dir_list, board_grid, wind_action)
 
  
     won = check_dandelion_win(board_grid)
@@ -121,20 +122,20 @@ def game_step(board_state_tensor, action, wind_action = None):
         return board_state_tensor, 'win', done
 
     # still here? Check wind win
-    if sum(dir_list) >= 7:  # wind won! Lost!
+    if sum(used_dir_list) >= 7:  # wind won! Lost!
         done = 1
         return board_state_tensor, 'lose', done
 
 
     # still here? Meh.
-    new_state = board_state_to_tensor(dir_list, board_grid, device)
+    new_state = board_state_to_tensor(used_dir_list, board_grid, device)
     result = 'meh'
     done = 0
 
     return new_state, result, done  # Continue game
 
 
-def wind_move(direction_list, board_grid, new_dir = None):
+def wind_move(used_direction_list, board_grid, new_dir = None):
     # optional: pass the wind_action to the function, so can be deterministic in exhuastive search
 
     if new_dir is None:
@@ -144,14 +145,14 @@ def wind_move(direction_list, board_grid, new_dir = None):
         #    quit()
         
         new_dir = random.randint(0, NUM_DIR-1)
-        while direction_list[new_dir] == 1:
+        while used_direction_list[new_dir] == 1:
             new_dir = random.randint(0, NUM_DIR-1)
 
-    direction_list[new_dir] = 1
+    used_direction_list[new_dir] = 1
     dir_tuple = dir_pairs[new_dir]
     board_grid = spread_seeds(board_grid, dir_tuple)
 
-    return direction_list, board_grid
+    return used_direction_list, board_grid
 
 
 def train_seeds():
@@ -203,9 +204,9 @@ def train_seeds():
             # choose one wind action and apply to all actions in exhaustive search
             # This is good for version 1, where opponent is random anyway
             # in real play, opp move might depend on seed's action
-            direction_list, board_grid = board_state_from_tensor(board_state_tensor)
+            used_direction_list, board_grid = board_state_from_tensor(board_state_tensor)
             wind_action = random.randint(0, NUM_DIR-1)
-            while direction_list[wind_action] == 1:
+            while used_direction_list[wind_action] == 1:
                 wind_action = random.randint(0, NUM_DIR-1)
 
 

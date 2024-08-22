@@ -1,11 +1,23 @@
+#
+#
+# This is not the file you are looking for.
+# current version is windBasic.py
+#
+#
+#
+
+
+
 import torch
 import torch.nn as nn 
 import torch.nn.functional as F
 import random
 from game import BOARD_WIDTH, BOARD_HEIGHT, initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game
 
+#
 # This is not the file you are looking for.
 # current version is windBasic.py
+#
 
 BOARD_WIDTH = 0 # DEV!
 BOARD_HEIGHT = 0 # DEV!

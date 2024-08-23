@@ -22,7 +22,7 @@ LEARNING_RATE = 0.002
 # learning rate is steped down in the code with:  scheduler = ReduceLROnPlateau...
 
 #EXPLORATION_PROB = 0.01
-EXPLORATION_PROB_STEPS = {20:0.2,    # first x percent of epochs -> y
+EXPLORATION_PROB_STEPS = {15:0.2,    # first x percent of epochs -> y
                           30:0.001,  # until x percent, etc
                           50:0}     
 
@@ -33,7 +33,7 @@ INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 140000
+EPOCHS = 240000
 
 
 # Gamma aka discount factor for future rewards or "Decay"
@@ -42,7 +42,7 @@ GAMMA = 0.98
 reward_vals = {
     "win": 100, 
     "illegal": -100, 
-    "lose": -80,
+    "lose": -85,
     "meh": 2
 }
 
@@ -128,7 +128,7 @@ def ddlion_move(used_dir_list, board_grid):
 # begin
 ############### 
 def train_wind():
-    rec_loss_mod, rec_loss_idx = 16, 0
+    rec_loss_mod, rec_loss_idx = 40, 0
     rec_loss = [0] * rec_loss_mod
     wcnt = lcnt =0
 
@@ -201,10 +201,10 @@ def train_wind():
 
             if reward == reward_vals['win']:
                 wcnt += 1
-                print("W", end="")
+                #print("W", end="")
             if reward == reward_vals['lose']:
                 lcnt += 1
-                print("L", end="")
+                #print("L", end="")
 
 
         #print(f"^^^^^^^^^^^         {epoch=}        RUN DONE   ^^^^^^^^^^^^^^^^^^^^^\n\n")
@@ -216,17 +216,21 @@ def train_wind():
             rec_loss_idx = 0
 
 
+        step_mod = 50
+        if epoch % step_mod == 0:
+            # update the Learning Rate if the loss has platued
+            if epoch > 2* rec_loss_mod and run_percent > 50 and loss.item() < 100:
+                avg_loss = sum(rec_loss) / rec_loss_mod
+                if avg_loss < 100:
+                    scheduler.step(avg_loss)
 
-        # update the Learning Rate if the loss has platued
-        if epoch > 2* rec_loss_mod and run_percent > 50 and loss.item() < 100:
-            avg_loss = sum(rec_loss) / rec_loss_mod
-            scheduler.step(avg_loss)
-            ##scheduler.step(loss)
-
-
-        if (epoch ) % 100 == 0:
+        epoch_mod = 400
+        if (epoch + 0) % epoch_mod == 0:
             learn_rate = optimizer.param_groups[0]['lr']
-            print(f"\nEpoch {epoch}, run_perc {round(run_percent, 1)} {wcnt=} {lcnt=} {EXPLORATION_PROB=} {learn_rate=}") #\n{q_values_pred=}")
+            wpct = round(100*wcnt / epoch_mod,1)
+            lpct = round(100*lcnt / epoch_mod,1)
+            finis = wcnt + lcnt
+            print(f"\nEpoch {epoch}, run_perc {round(run_percent, 1)} {wpct=} {lpct=}  {finis=} {EXPLORATION_PROB=} {learn_rate=}") #\n{q_values_pred=}")
             #print(f"  {q_values_pred=}\n{target_q_values=}\n")
             print(f"recent loss avg: -----  {sum(rec_loss)/rec_loss_mod}")
             #print()

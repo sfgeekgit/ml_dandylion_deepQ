@@ -1,9 +1,3 @@
-''' 
-Started with an "MVP" deep q network, made a "wind brain" to play dandelion.
-Broke it down to the basic blocks
-Built it up to a rhythm that rocks
-'''
-
 '''
 Current status:
 It works!
@@ -18,9 +12,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import os
 
 from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win  #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
-from brainlib import board_state_to_tensor, board_state_from_tensor
+from brainlib import *
 
 
 LEARNING_RATE = 0.002
@@ -38,20 +33,20 @@ INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 50000
+EPOCHS = 140000
+
 
 # Gamma aka discount factor for future rewards or "Decay"
-GAMMA = 0.97  
+GAMMA = 0.98  
 
 reward_vals = {
     "win": 100, 
     "illegal": -100, 
-    "lose": -50,
-    "meh": 0
+    "lose": -80,
+    "meh": 2
 }
 
 
-wcnt = lcnt =0
 
 #good_pass_cnt = 0
 
@@ -60,12 +55,21 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
         self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc3 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+
+        '''
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
+        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+        '''
 
     def forward(self, x):
         logits = F.relu(self.fc1(x))
         logits = F.relu(self.fc2(logits))
-        logits = self.fc3(logits)
+        logits = F.relu(self.fc3(logits))
+        logits = self.fc4(logits)
         return logits
 
 model = DQN()
@@ -123,114 +127,142 @@ def ddlion_move(used_dir_list, board_grid):
 ############### 
 # begin
 ############### 
-
-rec_loss_mod, rec_loss_idx = 16, 0
-rec_loss = [0] * rec_loss_mod
-
-for epoch in range(EPOCHS):
-    # Initialize game state
-    used_dirs = [0] * NUM_DIR  
-    board_grid = initialize_board()
-    
-    # have seeds make first move
-    state_tensor = ddlion_move(used_dirs, board_grid)
+def train_wind():
+    rec_loss_mod, rec_loss_idx = 16, 0
+    rec_loss = [0] * rec_loss_mod
+    wcnt = lcnt =0
 
 
-    run_percent = (epoch + 1) / EPOCHS * 100
-    for percent, prob in EXPLORATION_PROB_STEPS.items():
-        if run_percent < percent:
-            EXPLORATION_PROB = prob
-            break
-
-    done = False
-
-    # each epoch, play until a terminal state is reached
-    while not done:
-        # Generate predictions
-        q_values_pred = model(state_tensor)   # calls forward
-        q_values_pred = q_values_pred.unsqueeze(0)  # get correct tensor shape
-
+    for epoch in range(EPOCHS):
+        # Initialize game state
+        used_dirs = [0] * NUM_DIR  
+        board_grid = initialize_board()
         
-        # init target_q_values with zeroes
-        target_q_values = torch.zeros(1, NUM_DIR)
+        # seeds make first move
+        state_tensor = ddlion_move(used_dirs, board_grid)
 
-        # explore all actions (exhaustive checking for given current board state)
-        # this makes the "loss" numbers look bigger, but is much more efficient overall
-        for action in range(NUM_DIR):
+
+        run_percent = (epoch + 1) / EPOCHS * 100
+        for percent, prob in EXPLORATION_PROB_STEPS.items():
+            if run_percent < percent:
+                EXPLORATION_PROB = prob
+                break
+
+        done = False
+
+        # each epoch, play until a terminal state is reached
+        while not done:
+            # Generate predictions
+            q_values_pred = model(state_tensor)   # calls forward
+            q_values_pred = q_values_pred.unsqueeze(0)  # get correct tensor shape
+
+            
+            # init target_q_values with zeroes
+            target_q_values = torch.zeros(1, NUM_DIR)
+
+            # explore all actions (exhaustive checking for given current board state)
+            # this makes the "loss" numbers look bigger, but is much more efficient overall
+            for action in range(NUM_DIR):
+                next_state, reward, done = game_step(state_tensor, action)
+
+                with torch.no_grad():     # don't set the gradients becase we will not call backward on this
+                    next_q_values = model(next_state)  # calls forward()
+
+                max_next_q_value = torch.max(next_q_values).item()
+                if done:
+                    bellman_right = reward
+                else:
+                    bellman_right = reward + GAMMA * max_next_q_value  # This is the target value
+
+                target_q_values[0, action] = bellman_right  # Update using Bellman equation
+            # all actions checked
+            # now we have bellman_right for every action stored in target_q_values
+
+            # Learning step
+            # this should happen per move (not per epoch)
+            optimizer.zero_grad()
+            loss = F.mse_loss(q_values_pred, target_q_values) 
+            loss.backward()
+            optimizer.step()
+
+
+
+            # select and make next move
+            if random.random() < EXPLORATION_PROB:      # explore? 
+                #expl = 'explore'
+                action = random.randint(0, NUM_DIR-1)
+            else:                                       # else exploit
+                #expl = 'exploit'
+                action = torch.argmax(q_values_pred).item()
+
             next_state, reward, done = game_step(state_tensor, action)
+            state_tensor = next_state
 
-            with torch.no_grad():     # don't set the gradients becase we will not call backward on this
-                next_q_values = model(next_state)  # calls forward()
 
-            max_next_q_value = torch.max(next_q_values).item()
-            if done:
-                bellman_right = reward
-            else:
-                bellman_right = reward + GAMMA * max_next_q_value  # This is the target value
+            if reward == reward_vals['win']:
+                wcnt += 1
+                print("W", end="")
+            if reward == reward_vals['lose']:
+                lcnt += 1
+                print("L", end="")
 
-            target_q_values[0, action] = bellman_right  # Update using Bellman equation
-        # all actions checked
-        # now we have bellman_right for every action stored in target_q_values
 
-        # Learning step
-        # this should happen per move (not per epoch)
-        optimizer.zero_grad()
-        loss = F.mse_loss(q_values_pred, target_q_values) 
-        loss.backward()
-        optimizer.step()
+        #print(f"^^^^^^^^^^^         {epoch=}        RUN DONE   ^^^^^^^^^^^^^^^^^^^^^\n\n")
+
+
+        rec_loss[rec_loss_idx] = loss.item()
+        rec_loss_idx += 1
+        if rec_loss_idx % rec_loss_mod == 0:
+            rec_loss_idx = 0
 
 
 
-        # select and make next move
-        if random.random() < EXPLORATION_PROB:      # explore? 
-            #expl = 'explore'
-            action = random.randint(0, NUM_DIR-1)
-        else:                                       # else exploit
-            #expl = 'exploit'
-            action = torch.argmax(q_values_pred).item()
-
-        next_state, reward, done = game_step(state_tensor, action)
-        state_tensor = next_state
+        # update the Learning Rate if the loss has platued
+        if epoch > 2* rec_loss_mod and run_percent > 50 and loss.item() < 100:
+            avg_loss = sum(rec_loss) / rec_loss_mod
+            scheduler.step(avg_loss)
+            ##scheduler.step(loss)
 
 
-        if reward == reward_vals['win']:
-            wcnt += 1
-            print("W", end="")
-        if reward == reward_vals['lose']:
-            lcnt += 1
-            print("L", end="")
+        if (epoch ) % 100 == 0:
+            learn_rate = optimizer.param_groups[0]['lr']
+            print(f"\nEpoch {epoch}, run_perc {round(run_percent, 1)} {wcnt=} {lcnt=} {EXPLORATION_PROB=} {learn_rate=}") #\n{q_values_pred=}")
+            #print(f"  {q_values_pred=}\n{target_q_values=}\n")
+            print(f"recent loss avg: -----  {sum(rec_loss)/rec_loss_mod}")
+            #print()
 
 
-    #print(f"^^^^^^^^^^^         {epoch=}        RUN DONE   ^^^^^^^^^^^^^^^^^^^^^\n\n")
+            '''
+            if wcnt > 99:
+                good_pass_cnt += 1
+            if good_pass_cnt > 5:
+                print("got good by epoch", epoch +1)
+                #quit()
+            '''
+            wcnt = lcnt =  0
 
+if __name__ == "__main__":
+    model = DQN()
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.75, patience=EPOCHS//100, cooldown=EPOCHS//10)
+    train_wind()
 
-    rec_loss[rec_loss_idx] = loss.item()
-    rec_loss_idx += 1
-    if rec_loss_idx % rec_loss_mod == 0:
-        rec_loss_idx = 0
+    # Save the model
+    model_subdir, subdir_num = get_next_model_subdir("models/wind")
+    os.makedirs(model_subdir, exist_ok=True)
+    model_save_path = os.path.join(model_subdir, "windbrain.pth")
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
 
+    # Save the parameters
+    params = {
+        "EPOCHS": EPOCHS,
+        "LEARNING_RATE": LEARNING_RATE,
+        "EXPLORATION_PROB_STEPS": EXPLORATION_PROB_STEPS,
+        "GAMMA": GAMMA,
+        "reward_vals": reward_vals,
+        "LAYER_CNT": 4, # manually hard coded for now
+        "LAYERS": [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE], # manually hard coded for now
 
-
-    # update the Learning Rate if the loss has platued
-    if epoch > 2* rec_loss_mod and run_percent > 50 and loss.item() < 100:
-       avg_loss = sum(rec_loss) / rec_loss_mod
-       scheduler.step(avg_loss)
-    ##scheduler.step(loss)
-
-
-    if (epoch ) % 100 == 0:
-        learn_rate = optimizer.param_groups[0]['lr']
-        print(f"\nEpoch {epoch}, run_perc {round(run_percent, 1)} {wcnt=} {lcnt=} {EXPLORATION_PROB=} {learn_rate=}") #\n{q_values_pred=}")
-        #print(f"  {q_values_pred=}\n{target_q_values=}\n")
-        print(f"recent loss avg: -----  {sum(rec_loss)/rec_loss_mod}")
-        #print()
-
-
-        '''
-        if wcnt > 99:
-            good_pass_cnt += 1
-        if good_pass_cnt > 5:
-            print("got good by epoch", epoch +1)
-            #quit()
-        '''
-        wcnt = lcnt =  0
+    }
+    save_parameters(model_subdir, subdir_num, params)

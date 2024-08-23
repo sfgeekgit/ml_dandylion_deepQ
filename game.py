@@ -79,6 +79,7 @@ def validate_direction_input(direction_str, available_directions):
     return direction_str.upper() in available_directions
 
 
+
 def get_human_wind_move(board, used_directions): 
     available_directions = [direction_names[i] for i in range(len(direction_names)) if not used_directions[i]]
 
@@ -95,16 +96,8 @@ def get_human_wind_move(board, used_directions):
     used_directions[direction_names.index(chosen_direction)] = 1
     return dir_tuple
 
-
-def play_game():
-    board = initialize_board()
-    available_directions = direction_names.copy()
-    used_directions = [0] * NUM_DIR 
-
-
-    # Main game loop                                                                                                              
-    for turn in range(7):
-        # Dandelion's turn                                                                                                        
+def get_human_seed_move(board, used_directions):
+    
         print("Dandelion's Turn:")
         display_board_with_labels(board)
 
@@ -119,6 +112,18 @@ def play_game():
             col_str = input('Enter the column (A-{}) to place the dandelion: '.format(chr(BOARD_WIDTH + ord('A') - 1)))
 
         row, col = convert_user_input(row_str, col_str)
+        return row, col
+
+def play_game():
+    board = initialize_board()
+    available_directions = direction_names.copy()
+    used_directions = [0] * NUM_DIR 
+
+
+    # Main game loop                                                                                                              
+    for turn in range(7):
+        # Dandelion's turn
+        row, col = get_human_seed_move(board, used_directions)
         place_dandelion(board, row, col)
 
         # Check for immediate win condition                                                                                       
@@ -129,6 +134,10 @@ def play_game():
 
         dir_tuple = get_human_wind_move(board, used_directions)
         board = spread_seeds(board, dir_tuple)
+        if check_dandelion_win(board):
+            print('Dandelions win!')
+            break
+
 
     # Check for win condition if the game wasn't already won                                                                      
     if not check_dandelion_win(board):

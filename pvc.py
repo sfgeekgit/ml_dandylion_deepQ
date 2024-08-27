@@ -3,7 +3,7 @@ import torch
 #from game import initialize_board, display_board_with_labels, place_dandelion, spread_seeds, check_dandelion_win, convert_user_input, dir_pairs, direction_names, validate_row_input, validate_col_input, validate_direction_input, BOARD_WIDTH, BOARD_HEIGHT, get_human_wind_move
 from game import *
 #from seedBrain import DQN
-from brainlib import board_state_to_tensor #, board_state_from_tensor
+from brainlib import * # board_state_to_tensor #, board_state_from_tensor
 
 wind_human = True
 wind_human = False
@@ -11,20 +11,6 @@ wind_human = False
 seed_human = True
 seed_human = False
 
-def load_model(model_path, model_type="seed"):
-    if model_type == "seed":
-        import seedBrain
-        model = seedBrain.DQN()
-        # problem! This requires the current seedbrain.py code to have the same shape as the saved model.
-
-    elif model_type == "wind":
-        import windBrain
-        model = windBrain.DQN()
-    print(f"Loading model from {model_path}")
-    model.load_state_dict(torch.load(model_path))
-    print(f"Model loaded from {model_path}")
-    model.eval()
-    return model
 
 def seedbrain_move(used_dirs, board, model):
     board_tensor = board_state_to_tensor(used_dirs, board, device=torch.device("cpu"))
@@ -50,20 +36,21 @@ def windbrain_move(used_dirs, board, model):
 def play_game_against_model():
 
     # Hardcode the model directory for now
-    seedbrain_path = "models/010/seedbrain.pth" # high trained
-    #seedbrain_path = "models/027/seedbrain.pth" # low trained
+    seedbrain_dir     = "models/seeds/003/" 
+    seedbrain_filename =  "seedbrain.pth"
 
-    windbrain_path = "models/wind/007/windbrain.pth" # high trained
-    #windbrain_path = "models/wind/001/windbrain.pth" # low trained
+    windbrain_dir = "models/wind/011/"
+    windbrain_filename = "windbrain.pth"
 
 
     if not seed_human:
-        seedbrain = load_model(seedbrain_path, model_type="seed")
-        print(f"Loaded model from {seedbrain_path}")
+        seedbrain = load_model(seedbrain_dir, seedbrain_filename)
+        print(f"Loaded model from {seedbrain_dir}")
+
 
     if not wind_human:
-        windbrain = load_model(windbrain_path, model_type="wind")
-        print(f"Loaded model from {windbrain_path}")
+        windbrain = load_model(windbrain_dir, windbrain_filename)
+        print(f"Loaded model from {windbrain_dir}")
 
     board = initialize_board()
     #available_direction_names = direction_names.copy()
@@ -72,6 +59,7 @@ def play_game_against_model():
     #avail_directions = [1] * 8
     #print(f"Available directions: {avail_directions}")
 
+    winner = None
     # Main game loop
     for turn in range(7):        
         # Seedbrain makes a move
@@ -84,12 +72,13 @@ def play_game_against_model():
         if board[row][col] == 1:
             print(f"Dandelion already placed at {row}, {col}")
             print("\n!!!!!!!!!!! Dandelions Forfeit!! Wind wins!! But.. let's keep playing anyway.\n")
-
+            winner = "w"
         place_dandelion(board, row, col)
 
         # Check for immediate win condition
         if check_dandelion_win(board):
             print('Dandelions win!')
+            winner = "s"
             break
         
         if wind_human:
@@ -97,19 +86,35 @@ def play_game_against_model():
             # get_human_wind_move function updates used_directions I'm not used to python working that way, but... here we are.
             dir_tuple = get_human_wind_move(board, used_directions)  
         else:
-            print(f"Before move: {used_directions=}")
+            #print(f"Before move: {used_directions=}")
+            #print("# Directions (N, S, E, W, NE, NW, SE, SW)")
+            dir_names = direction_names.copy() # is this necessary?
+            for i in range(len(dir_names)):
+                if used_directions[i] == 1:
+                    dir_names[i] = i
+            print(f"# Avail Directions: {dir_names}")
+            used_dir_before = used_directions.copy()
             dir_tuple = windbrain_move(used_directions, board, windbrain)
-            print(f"After move: {used_directions=}")
+            if used_dir_before == used_directions:
+                print("Wind reused a direction! Wind forfeits!")
+                winner = "s"
+                break
+            
         
         board = spread_seeds(board, dir_tuple)
+        display_board_with_labels(board)
 
-    display_board_with_labels(board)
     print("Game over.")
-    # Check for win condition if the game wasn't already won
-    if check_dandelion_win(board):
-        print("!!!!!!!!!!! Dandelions win!!!")
+    if winner:
+        print(f"{winner=}")
     else:
-        print('!!!!!!!!!!! Wind wins!!!!!!!!')
+        if check_dandelion_win(board):
+            winner = "s"
+            print("!!!!!!!!!!! Dandelions win!!!")
+        else:
+            winner = "w"
+            print('!!!!!!!!!!! Wind wins!!!!!!!!')
+    return winner
 
 if __name__ == "__main__":
     play_game_against_model()

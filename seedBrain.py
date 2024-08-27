@@ -13,6 +13,11 @@ from brainlib import *
 LEARNING_RATE = 0.002
 
 EXPLORATION_PROB = 0.00 # will be set by steps (default to zero set below after all steps)
+EXPLORATION_PROB_STEPS = {28.0:0.2,     # first x percent of epochs -> y
+                          35.0:0.1,     # until x percent, etc
+                          40.0:0.0,     # until x percent, etc
+                        }
+'''
 EXPLORATION_PROB_STEPS = {10.0:0.2,     # first x percent of epochs -> y
                           12.0:0.1,     # until x percent, etc
                           15.0:0.0,     # until x percent, etc
@@ -20,15 +25,19 @@ EXPLORATION_PROB_STEPS = {10.0:0.2,     # first x percent of epochs -> y
                           18.0:0.0,
                           18.5:0.05,
                           28.0:0.0, 
-                          29.5:0.05,
+                          33.5:0.08,
+                          38.0:0.0, 
+                          44.5:0.05,
                         }
-
+'''
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)#
 HIDDEN_SIZE = INPUT_SIZE * 2
+MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE]
 OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
 # seedbrain (with 3 layers, other current settings) seems to take about 300K epochs to train to a win rate over 90% vs random.
 EPOCHS = 1620000
+EPOCHS = 50000
 
 
 # Gamma aka discount factor for future rewards or "Decay"
@@ -46,6 +55,8 @@ reward_vals = {
 #BATCH_SIZE = 4 # Dev. Probably make bigger like 32 or more
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#print(f"Using device: {device}")
+#quit()
 
 '''
 Weird. Trying with 5 layers, new behavior that never happened with 3 or 4
@@ -62,40 +73,26 @@ Now trying gamma = .97 5 layers...  (well, first run did the exact same thing..)
 
 '''
 
+'''
 class DQN(nn.Module):
     def __init__(self):
-        '''
-        super(DQN, self).__init__()
-        self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
-        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
-        # just to start. Will probably add at least one more layer
-        self.to(device)
-        '''
+
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
         self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc3 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        #self.fc4 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
         self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
         self.to(device)
         
 
     def forward(self, x):
-        '''
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        #x = self.fc2(x)
-        return x
-        '''
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         #x = F.relu(self.fc4(x))
         x = self.fc4(x)
         return x
-        
+ '''       
 
 def game_step(board_state_tensor, action, wind_action = None):
     board_state_tensor = board_state_tensor.to(device)
@@ -327,29 +324,39 @@ def train_seeds():
 
 if __name__ == "__main__":
 
-    seedbrain = DQN().to(device)  
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    #seedbrain = DQN().to(device)  
+    #seedbrain = DQN(INPUT_SIZE, [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE], OUTPUT_SIZE).to(device)
+
+    seedbrain = DQN(INPUT_SIZE, MIDDLE_LAYERS, OUTPUT_SIZE, device)
     optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
     train_seeds()
 
     # Save the model
     model_subdir, subdir_num = get_next_model_subdir("models/seeds")
+    '''
     os.makedirs(model_subdir, exist_ok=True)
     model_save_path = os.path.join(model_subdir, "seedbrain.pth")
     torch.save(seedbrain.state_dict(), model_save_path)
     print(f"Model saved to {model_save_path}")
+    '''
 
     # Save the parameters
     params = {
         "EPOCHS": EPOCHS,
         "GAMMA": GAMMA,
         "reward_vals": reward_vals,
-        "LAYER_CNT": 4, # manually hard coded for now
-        "LAYERS": [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE], # manually hard coded for now
+        #"LAYER_CNT": 4, # manually hard coded for now
+        #"LAYERS": [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE], # manually hard coded for now
         "LEARNING_RATE": LEARNING_RATE,
         "EXPLORATION_PROB_STEPS": EXPLORATION_PROB_STEPS,
         "INPUT_SIZE": INPUT_SIZE,
         "HIDDEN_SIZE": HIDDEN_SIZE,
         "OUTPUT_SIZE": OUTPUT_SIZE,
+        "MIDDLE_LAYERS": MIDDLE_LAYERS,
         "device": device.type
     }
-    save_parameters(model_subdir, subdir_num, params)
+    #save_parameters(model_subdir, subdir_num, params)
+    save_model(seedbrain, model_subdir, subdir_num, params) 

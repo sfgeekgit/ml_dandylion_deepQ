@@ -14,7 +14,7 @@ import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import os
 
-from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win  #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
+from game import * # BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, initialize_board, dir_pairs, place_dandelion, spread_seeds, check_dandelion_win  #, convert_user_input, direction_names, validate_row_input, validate_col_input, validate_direction_input, play_game,  display_board_with_labels
 from brainlib import *
 
 
@@ -31,50 +31,25 @@ EXPLORATION_PROB_STEPS = {15:0.2,    # first x percent of epochs -> y
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
+MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE]
 OUTPUT_SIZE = NUM_DIR
 
 EPOCHS = 240000
+EPOCHS = 150000
+
 
 
 # Gamma aka discount factor for future rewards or "Decay"
-GAMMA = 0.98  
+GAMMA = 0.99  
 
 reward_vals = {
     "win": 100, 
     "illegal": -100, 
-    "lose": -85,
-    "meh": 2
+    "lose": -75,
+    "meh_base": 20,
+    "spread_pen": -1 # per dot on the board (seed spread)
 }
 
-
-
-#good_pass_cnt = 0
-
-class DQN(nn.Module):
-    def __init__(self):
-        super(DQN, self).__init__()
-        self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
-        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        self.fc3 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        self.fc4 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
-
-        '''
-        super(DQN, self).__init__()
-        self.fc1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
-        self.fc2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        self.fc3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
-        '''
-
-    def forward(self, x):
-        logits = F.relu(self.fc1(x))
-        logits = F.relu(self.fc2(logits))
-        logits = F.relu(self.fc3(logits))
-        logits = self.fc4(logits)
-        return logits
-
-model = DQN()
-optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.75, patience=EPOCHS//100, cooldown=EPOCHS//10)
 
 
 def game_step(state, action):
@@ -112,7 +87,16 @@ def game_step(state, action):
         return new_state, reward_vals['lose'], 1  # Game lost
 
     # still here? Keep playing
-    return new_state, reward_vals['meh'], 0  # Continue game
+    # small penalty for seed spread
+    seed_count = sum(1 for row in board_grid for value in row if value == 2)
+    seed_pen = -seed_count * reward_vals['spread_pen']
+    if seed_pen >= reward_vals['meh_base']:
+        reward = 1
+    else:
+        reward = reward_vals['meh_base'] - seed_pen
+
+    #return new_state, reward_vals['meh_base'], 0  # Continue game
+    return new_state, reward, 0  # Continue game
 
 
 def ddlion_move(used_dir_list, board_grid):
@@ -178,6 +162,8 @@ def train_wind():
             # all actions checked
             # now we have bellman_right for every action stored in target_q_values
 
+
+
             # Learning step
             # this should happen per move (not per epoch)
             optimizer.zero_grad()
@@ -209,7 +195,7 @@ def train_wind():
 
         #print(f"^^^^^^^^^^^         {epoch=}        RUN DONE   ^^^^^^^^^^^^^^^^^^^^^\n\n")
 
-
+        
         rec_loss[rec_loss_idx] = loss.item()
         rec_loss_idx += 1
         if rec_loss_idx % rec_loss_mod == 0:
@@ -223,6 +209,7 @@ def train_wind():
                 avg_loss = sum(rec_loss) / rec_loss_mod
                 if avg_loss < 100:
                     scheduler.step(avg_loss)
+
 
         epoch_mod = 400
         if (epoch + 0) % epoch_mod == 0:
@@ -246,27 +233,45 @@ def train_wind():
             wcnt = lcnt =  0
 
 if __name__ == "__main__":
-    model = DQN()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")    
+
+    #seedbrain = DQN(INPUT_SIZE, MIDDLE_LAYERS, OUTPUT_SIZE, device)
+    #optimizer = torch.optim.Adam(seedbrain.parameters(), lr=LEARNING_RATE)
+    #train_wind()
+
+
+    #model = DQN()
+    model = DQN(INPUT_SIZE, MIDDLE_LAYERS, OUTPUT_SIZE, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.75, patience=EPOCHS//100, cooldown=EPOCHS//10)
     train_wind()
 
     # Save the model
     model_subdir, subdir_num = get_next_model_subdir("models/wind")
-    os.makedirs(model_subdir, exist_ok=True)
-    model_save_path = os.path.join(model_subdir, "windbrain.pth")
-    torch.save(model.state_dict(), model_save_path)
-    print(f"Model saved to {model_save_path}")
+
+
+
+
+    #os.makedirs(model_subdir, exist_ok=True)
+    #model_save_path = os.path.join(model_subdir, "windbrain.pth")
+    #torch.save(model.state_dict(), model_save_path)
+    #print(f"Model saved to {model_save_path}")
 
     # Save the parameters
     params = {
         "EPOCHS": EPOCHS,
+        "GAMMA": GAMMA,
         "LEARNING_RATE": LEARNING_RATE,
         "EXPLORATION_PROB_STEPS": EXPLORATION_PROB_STEPS,
-        "GAMMA": GAMMA,
         "reward_vals": reward_vals,
-        "LAYER_CNT": 4, # manually hard coded for now
-        "LAYERS": [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE], # manually hard coded for now
-
+        "INPUT_SIZE": INPUT_SIZE,
+        "HIDDEN_SIZE": HIDDEN_SIZE,
+        "OUTPUT_SIZE": OUTPUT_SIZE,
+        "MIDDLE_LAYERS": MIDDLE_LAYERS,
+        "device": device.type
     }
-    save_parameters(model_subdir, subdir_num, params)
+    save_model(model, model_subdir, subdir_num, params, "windbrain.pth")
+    #save_parameters(model_subdir, subdir_num, params)
+    #def save_model(model, model_subdir, subdir_num, params, model_filename="seedbrain.pth"):

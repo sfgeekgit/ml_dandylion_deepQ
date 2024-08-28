@@ -36,10 +36,10 @@ def windbrain_move(used_dirs, board, model):
 def play_game_against_model():
 
     # Hardcode the model directory for now
-    seedbrain_dir     = "models/seeds/003/" 
+    seedbrain_dir     = "models/seeds/006/" 
     seedbrain_filename =  "seedbrain.pth"
 
-    windbrain_dir = "models/wind/011/"
+    windbrain_dir = "models/wind/014/"
     windbrain_filename = "windbrain.pth"
 
 

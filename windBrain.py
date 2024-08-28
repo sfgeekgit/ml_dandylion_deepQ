@@ -22,20 +22,30 @@ LEARNING_RATE = 0.002
 # learning rate is steped down in the code with:  scheduler = ReduceLROnPlateau...
 
 #EXPLORATION_PROB = 0.01
+'''
 EXPLORATION_PROB_STEPS = {15:0.2,    # first x percent of epochs -> y
                           30:0.001,  # until x percent, etc
                           50:0}     
+'''
 
-#NUM_DIR = 8 # will always be 8, but here for clarity
+
+EXPLORATION_PROB_STEPS = {8:0.2,   # first x percent of epochs -> y
+                          10:0.05,  # until x percent, etc
+                          12:0,
+                          15:0.1,
+                          18:0, 
+                          20:0.005,
+                          25:0,                          
+                          }     
 
 
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)
 HIDDEN_SIZE = INPUT_SIZE *2
-MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE]
+MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE] # , HIDDEN_SIZE]
 OUTPUT_SIZE = NUM_DIR
 
 EPOCHS = 240000
-EPOCHS = 150000
+#EPOCHS = 920000
 
 
 

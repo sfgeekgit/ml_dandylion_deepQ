@@ -13,11 +13,11 @@ from brainlib import *
 LEARNING_RATE = 0.002
 
 EXPLORATION_PROB = 0.00 # will be set by steps (default to zero set below after all steps)
-EXPLORATION_PROB_STEPS = {28.0:0.2,     # first x percent of epochs -> y
-                          35.0:0.1,     # until x percent, etc
-                          40.0:0.0,     # until x percent, etc
-                        }
-'''
+#EXPLORATION_PROB_STEPS = {28.0:0.2,     # first x percent of epochs -> y
+#                          35.0:0.1,     # until x percent, etc
+#                          40.0:0.0,     # until x percent, etc
+#                        }
+
 EXPLORATION_PROB_STEPS = {10.0:0.2,     # first x percent of epochs -> y
                           12.0:0.1,     # until x percent, etc
                           15.0:0.0,     # until x percent, etc
@@ -26,10 +26,11 @@ EXPLORATION_PROB_STEPS = {10.0:0.2,     # first x percent of epochs -> y
                           18.5:0.05,
                           28.0:0.0, 
                           33.5:0.08,
-                          38.0:0.0, 
+                          42.0:0.0, 
                           44.5:0.05,
+                          48.0:0.0 
                         }
-'''
+
 INPUT_SIZE = NUM_DIR + 2 *(BOARD_HEIGHT * BOARD_WIDTH)#
 HIDDEN_SIZE = INPUT_SIZE * 2
 MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE, HIDDEN_SIZE]
@@ -37,7 +38,7 @@ OUTPUT_SIZE = BOARD_HEIGHT * BOARD_WIDTH
 
 # seedbrain (with 3 layers, other current settings) seems to take about 300K epochs to train to a win rate over 90% vs random.
 EPOCHS = 1620000
-EPOCHS = 50000
+EPOCHS = 3250000
 
 
 # Gamma aka discount factor for future rewards or "Decay"

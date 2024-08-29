@@ -36,10 +36,10 @@ def windbrain_move(used_dirs, board, model):
 def play_game_against_model():
 
     # Hardcode the model directory for now
-    seedbrain_dir     = "models/seeds/006/" 
-    seedbrain_filename =  "seedbrain.pth"
+    seedbrain_dir      = "models/seeds/007/" 
+    seedbrain_filename = "seedbrain.pth"
 
-    windbrain_dir = "models/wind/014/"
+    windbrain_dir =      "models/wind/014/"
     windbrain_filename = "windbrain.pth"
 
 
@@ -77,7 +77,7 @@ def play_game_against_model():
 
         # Check for immediate win condition
         if check_dandelion_win(board):
-            print('Dandelions win!')
+            print('Dandelions win! Plant in last empty spot!')
             winner = "s"
             break
         
@@ -104,8 +104,11 @@ def play_game_against_model():
         board = spread_seeds(board, dir_tuple)
         display_board_with_labels(board)
 
+
     print("Game over.")
     if winner:
+        print("Final board:")
+        display_board_with_labels(board)
         print(f"{winner=}")
     else:
         if check_dandelion_win(board):

@@ -42,7 +42,7 @@ EPOCHS = 3250000
 
 
 # Gamma aka discount factor for future rewards or "Decay"
-GAMMA = 0.98  
+GAMMA = 0.99  
 
 
 reward_vals = {

@@ -28,11 +28,8 @@ def display_board_with_labels(board):
 
 
 
-
-
 def place_dandelion(board, row, col):
     board[row][col] = 1
-
 
 
 def spread_seeds(board, direction_tuple):
@@ -59,6 +56,11 @@ def check_dandelion_win(board):  # check after every Dandelion turn
                 return False
     return True
 
+
+
+def seed_idx_to_label(idx):
+    row, col = idx // BOARD_WIDTH, idx % BOARD_WIDTH
+    return f"{row+1}{chr(col+ord('A'))}"
 
 def convert_user_input(row_str, col_str):
     row = int(row_str) - 1

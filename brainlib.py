@@ -22,30 +22,34 @@ class DQN(nn.Module):
     def forward(self, x):
         return self.model(x)
     
+
 def select_action_with_temperature(q_values, temperature=0.0):
     if temperature == 0:
         # Deterministic case: return the index of the maximum q_value
-        return torch.argmax(q_values).item()
+        return [torch.argmax(q_values).item(), True]
     else:
         scaled_q_values = q_values / temperature
         probabilities = torch.softmax(scaled_q_values, dim=0)
         action_index = torch.multinomial(probabilities, num_samples=1)
 
+        
         if action_index.item() == torch.argmax(q_values).item():
-            print ("Picked the best move")
+            pbest = True
+            return [action_index.item(), True]
+            #print ("\n\n\n\n\n---------\n\n Picked the best move")
         else:
-            print("\n\n\n\n\n---------\n\n Picked a different move")
-
-
+            pbest = False
+            #print("\n\n\n\n\n---------\n\n Picked a different move")
+    
         formatted_probabilities = [f"{100*p:.1f}" for p in probabilities.tolist()]
-        print(f"q_values: {q_values}")
+        print(f"q_values: {q_values} {len(q_values)=}")
         print(f"Probabilities: {formatted_probabilities=}")
-        print(f"Highest probability: {max(formatted_probabilities)}")
+        print(f"Highest probability: {100*max(probabilities.tolist()):.1f}%")
         print(f"odds this choice was selected: {formatted_probabilities[action_index.item()]}\n\n\n\n")
 
-        return action_index.item()
-
-
+    
+        return [action_index.item(), pbest]
+    
 def load_model(model_dir, model_filename="seedbrain.pth", device='cpu'): 
     model_path = os.path.join(model_dir, model_filename)
 

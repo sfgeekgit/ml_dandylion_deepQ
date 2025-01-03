@@ -1,0 +1,10 @@
+EPOCHS = 240000
+GAMMA = 0.99
+LEARNING_RATE = 0.002
+EXPLORATION_PROB_STEPS = {8: 0.2, 10: 0.05, 12: 0, 15: 0.1, 18: 0, 20: 0.005, 25: 0}
+reward_vals = {'win': 100, 'illegal': -100, 'lose': -75, 'meh_base': 20, 'spread_pen': -1}
+INPUT_SIZE = 58
+HIDDEN_SIZE = 116
+OUTPUT_SIZE = 8
+MIDDLE_LAYERS = [116, 116]
+device = 'cpu'

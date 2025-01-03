@@ -2,8 +2,9 @@ import torch
 import os
 from torch import nn
 
-from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR
+from game import BOARD_WIDTH, BOARD_HEIGHT, NUM_DIR, dir_pairs, seed_idx_to_label
 
+stochastic_logging = False
 
 class DQN(nn.Module):  
     def __init__(self, input_size, hidden_sizes, output_size, device='cpu'):
@@ -40,16 +41,74 @@ def select_action_with_temperature(q_values, temperature=0.0):
         else:
             pbest = False
             #print("\n\n\n\n\n---------\n\n Picked a different move")
-    
-        formatted_probabilities = [f"{100*p:.1f}" for p in probabilities.tolist()]
-        print(f"q_values: {q_values} {len(q_values)=}")
-        print(f"Probabilities: {formatted_probabilities=}")
-        print(f"Highest probability: {100*max(probabilities.tolist()):.1f}%")
-        print(f"odds this choice was selected: {formatted_probabilities[action_index.item()]}\n\n\n\n")
+
+        #stochastic_logging = False
+        global stochastic_logging
+        if stochastic_logging:
+            formatted_probabilities = [f"{100*p:.1f}" for p in probabilities.tolist()]
+            print(f"q_values: {q_values} {len(q_values)=}")
+            print(f"Probabilities: {formatted_probabilities=}")
+            print(f"Highest probability: {100*max(probabilities.tolist()):.1f}%")
+            print(f"odds this choice was selected: {formatted_probabilities[action_index.item()]}\n\n\n\n")
 
     
         return [action_index.item(), pbest]
     
+
+def seedbrain_move_stochastic(used_dirs, board, model, temperature=4.0):
+    board_tensor = board_state_to_tensor(used_dirs, board, device=torch.device("cpu"))
+    with torch.no_grad():
+        q_values = model(board_tensor)
+
+    ideal_move_idx = torch.argmax(q_values).item()
+    [move_idx, picked_best] = select_action_with_temperature(q_values, temperature)
+    row_label, col_label = seed_idx_to_label(move_idx)
+
+    stochastic_logging = False
+    if stochastic_logging:
+        if picked_best:
+            seed_moves_cnt['best'] += 1
+            seed_moves_tally.append('_')
+        else:
+            seed_moves_cnt['rest'] += 1
+            seed_moves_tally.append('X')
+
+        if move_idx != ideal_move_idx:
+            ideal_row_label, ideal_col_label = seed_idx_to_label(ideal_move_idx)
+            print(f"Seed Best Move: {ideal_row_label}, {ideal_col_label} selected: {row_label}, {col_label}")
+
+    print(f"--------------  Seed Move: {row_label}, {col_label}  {temperature=}")
+
+    return move_idx // BOARD_WIDTH, move_idx % BOARD_WIDTH
+
+def windbrain_move_stochastic(used_dirs, board, model, temperature=4.0):
+    board_tensor = board_state_to_tensor(used_dirs, board, device=torch.device("cpu"))
+    with torch.no_grad():
+        q_values = model(board_tensor)
+    ideal_direction = torch.argmax(q_values).item()
+
+    [chosen_direction, picked_best] = select_action_with_temperature(q_values, temperature)
+
+    stochastic_logging = False
+    if stochastic_logging:
+        print(f"Wind Move Q values: {q_values}")
+        if picked_best:
+            wind_moves_cnt['best'] += 1
+            wind_moves_tally.append('_')
+        else:
+            wind_moves_cnt['rest'] += 1
+            wind_moves_tally.append('X')
+
+        if chosen_direction != ideal_direction:
+            print(f"Wind Best Move: {ideal_direction} selected: {chosen_direction} {temperature=} {picked_best=}")
+
+    print(f"\n------------------     Wind Move: {chosen_direction}")
+
+    #dir_tuple = dir_pairs[direction_names.index(chosen_direction)]
+    dir_tuple = dir_pairs[chosen_direction]
+    used_dirs[chosen_direction] = 1
+    return dir_tuple
+
 def load_model(model_dir, model_filename="seedbrain.pth", device='cpu'): 
     model_path = os.path.join(model_dir, model_filename)
 

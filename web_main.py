@@ -88,10 +88,7 @@ with col2:
 
 
 
-st.markdown(f"""Now, get this working on my local machine as a next step""")
-
-st.write(f"selected_seed: {selected_seed}")
-st.write(f"selected_wind: {selected_wind}")
+#st.markdown(f"""Now, get this working on my local machine as a next step""")
 
 # for local running
 seedbrain_dir      = "./models/seeds/" 
@@ -100,7 +97,16 @@ windbrain_dir =      "./models/wind/"
 seedbrain = load_model(seedbrain_dir, selected_seed)
 windbrain = load_model(windbrain_dir, selected_wind)
 
+# input to allow user to set temperature
+wind_temp = st.slider("Wind Temperature", 0.0, 20.0, 2.0)
+seed_temp = st.slider("Seed Temperature", 0.0, 20.0, 2.0)
+
+# after loading models, display a button to run the game
+if st.button("Run Game"):
+    winner, out_str = model_v_model(seedbrain, windbrain, seed_temp, wind_temp)
+    st.write(out_str)
+
 # Run model vs model game
-winner, out_str = model_v_model(seedbrain, windbrain)
-st.write(out_str)
+#winner, out_str = model_v_model(seedbrain, windbrain)
+#st.write(out_str)
 

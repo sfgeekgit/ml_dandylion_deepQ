@@ -28,6 +28,7 @@ if stochastic_logging:
 
 
 def model_v_model(seedbrain, windbrain, seed_temp=0, wind_temp=0):
+    out_str = ''
     # temperature of 0 means it's deterministic, 1 is completely random. Generally use 0 or near 0
     board = initialize_board()
     used_directions = [0] * len(direction_names)
@@ -43,15 +44,15 @@ def model_v_model(seedbrain, windbrain, seed_temp=0, wind_temp=0):
 
         # Check if the board already has a dandelion at that location
         if board[row][col] == 1:
-            print(f"Dandelion already placed at {row}, {col}")
-            print("\n!!!!!!!!!!! Dandelions Forfeit!! Wind wins!!")
+            out_str += f"Dandelion already placed at {row}, {col}\n"
+            out_str += "\n!!!!!!!!!!! Dandelions Forfeit!! Wind wins!!\n"
             winner = "w"
             break
         place_dandelion(board, row, col)
 
         # Check for immediate win condition
         if check_dandelion_win(board):
-            print('Dandelions win! Plant in last empty spot!')
+            out_str += "Dandelions win! Plant in last empty spot!\n"
             winner = "s"
             break
 
@@ -65,7 +66,7 @@ def model_v_model(seedbrain, windbrain, seed_temp=0, wind_temp=0):
         used_dir_before = used_directions.copy()
         dir_tuple = windbrain_move_stochastic(used_directions, board, windbrain, wind_temp)
         if used_dir_before == used_directions:
-            print("Wind reused a direction! Wind forfeits!")
+            out_str += "Wind reused a direction! Wind forfeits!\n"
             winner = "s"
             break
             
@@ -73,23 +74,23 @@ def model_v_model(seedbrain, windbrain, seed_temp=0, wind_temp=0):
         display_board_with_labels(board)
 
 
-    print("Game over.")
+    out_str += "Game over.\n"
     if stochastic_logging:
-        print(f"Seed moves: {seed_moves_cnt} {''.join(seed_moves_tally)}")
-        print(f"Wind moves: {wind_moves_cnt} {''.join(wind_moves_tally)}")
+        out_str += f"Seed moves: {seed_moves_cnt} {''.join(seed_moves_tally)}\n"
+        out_str += f"Wind moves: {wind_moves_cnt} {''.join(wind_moves_tally)}\n"
 
     if winner:
-        print("Final board:")
+        out_str += "Final board:\n"
         display_board_with_labels(board)
-        print(f"{winner=}")
+        out_str += f"{winner=}\n"
     else:
         if check_dandelion_win(board):
             winner = "s"
-            print("!!!!!!!!!!! Dandelions win!!!")
+            out_str += "!!!!!!!!!!! Dandelions win!!!\n"
         else:
             winner = "w"
-            print('!!!!!!!!!!! Wind wins!!!!!!!!')
-    return winner
+            out_str += "!!!!!!!!!!! Wind wins!!!!!!!!\n"
+    return (winner, out_str)
 
 if __name__ == "__main__":
     # Load models
@@ -102,4 +103,7 @@ if __name__ == "__main__":
     windbrain = load_model(windbrain_dir, windbrain_filename)
 
     # Run model vs model game
-    model_v_model(seedbrain, windbrain)
+    winner, out_str = model_v_model(seedbrain, windbrain)
+
+    print(f"winner: {winner}\n\n\n\n")
+    print(out_str)

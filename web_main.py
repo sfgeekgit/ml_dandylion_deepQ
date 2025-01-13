@@ -1,5 +1,9 @@
 import streamlit as st
 import os
+from game import *
+from brainlib import * # board_state_to_tensor #, board_state_from_tensor
+from cvc import model_v_model
+
 
 st.markdown(f"""Neural Networks trained with Deep Q Learning to play the game of Dandelion.\n\n
 Dandelion is an asymmetric two player game featured in the book \"Math Games With Bad Drawings\" by Ben Orlin.
@@ -81,4 +85,22 @@ with col1:
     
 with col2:
     display_model_params(selected_wind, "wind", "models/wind")
+
+
+
+st.markdown(f"""Now, get this working on my local machine as a next step""")
+
+st.write(f"selected_seed: {selected_seed}")
+st.write(f"selected_wind: {selected_wind}")
+
+# for local running
+seedbrain_dir      = "./models/seeds/" 
+windbrain_dir =      "./models/wind/"
+
+seedbrain = load_model(seedbrain_dir, selected_seed)
+windbrain = load_model(windbrain_dir, selected_wind)
+
+# Run model vs model game
+winner, out_str = model_v_model(seedbrain, windbrain)
+st.write(out_str)
 

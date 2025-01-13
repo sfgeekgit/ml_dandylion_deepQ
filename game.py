@@ -18,15 +18,18 @@ def initialize_board():
     return [[0 for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
 
 def display_board_with_labels(board):
-    #print(f"{board=}")
-    #tsor = board_to_tensor(board)
-    #print(f"{tsor=}")
+    #col_labels = '  A B C D E'
+    #print(col_labels)
+    #for i, row in enumerate(board):
+    #    print(f"{i+1} {' '.join('*' if cell == 1 else '.' if cell == 2 else ' ' for cell in row)}")
+    print(board_as_str(board))
+
+def board_as_str(board):
     col_labels = '  A B C D E'
-    print(col_labels)
+    out_str = col_labels + '\n'
     for i, row in enumerate(board):
-        print(f"{i+1} {' '.join('*' if cell == 1 else '.' if cell == 2 else ' ' for cell in row)}")
-
-
+        out_str += f"{i+1} {' '.join('*' if cell == 1 else '.' if cell == 2 else ' ' for cell in row)}\n"
+    return out_str
 
 def place_dandelion(board, row, col):
     board[row][col] = 1

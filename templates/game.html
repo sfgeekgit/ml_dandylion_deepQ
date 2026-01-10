@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dandelions - A Game of Seeds and Wind</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Dynamic board grid dimensions from Flask */
+        .board-grid {
+            grid-template-columns: 30px repeat({{ board_width }}, 70px);
+            grid-template-rows: 30px repeat({{ board_height }}, 70px);
+        }
+
+        @media (max-width: 768px) {
+            .board-grid {
+                grid-template-columns: 24px repeat(5, 54px);
+                grid-template-rows: 24px repeat(5, 54px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .board-grid {
+                grid-template-columns: 20px repeat(5, 48px);
+                grid-template-rows: 20px repeat(5, 48px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">*</div>
+                <h1>Dandelions</h1>
+            </div>
+            <div class="header-turn-display">
+                <div class="current-turn">Current Turn</div>
+                <div class="turn-player" id="turnPlayer">Dandelion</div>
+                <div class="turn-goal" id="turnGoal">Try to fill the board</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="panel board-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Game Board</span>
+                    <span class="panel-badge active" id="boardBadge">Dandelion's Turn</span>
+                </div>
+                <div class="panel-content">
+                    <div class="board-container">
+                        <div class="board-grid" id="boardGrid">
+                            <!-- Board will be rendered by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-item">
+                        <div class="legend-icon dandelion">*</div>
+                        <span>Dandelion</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-icon seed"><span></span></div>
+                        <span>Seed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel compass-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Wind Control</span>
+                        <span class="panel-badge waiting" id="compassBadge">Waiting</span>
+                    </div>
+                    <div class="panel-content">
+                        <div class="compass-display">
+                            <div class="compass-ring"></div>
+                            <div class="compass-center">&#128168;</div>
+                            {% for dir in directions_clockwise %}
+                            <button class="dir-btn dir-{{ dir }}" data-dir="{{ dir }}">{{ dir }}</button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel info-panel">
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="newGameBtn">New Game</button>
+                    </div>
+                    <div class="stats-display">
+                        <div class="stat">
+                            <div class="stat-value" id="statTurn">1</div>
+                            <div class="stat-label">Turn</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statFlowers">0</div>
+                            <div class="stat-label">Flowers</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statSeeds">0</div>
+                            <div class="stat-label">Seeds</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statEmpty">25</div>
+                            <div class="stat-label">Empty</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="winnerAnnouncement"></div>
+
+        <div class="panel rules-panel">
+            <div class="panel-content">
+                <p class="rules-subtitle">A game of seeds and wind from the book "Math Games with Bad Drawings"</p>
+                <h3>Rules</h3>
+                <ul>
+                    <li><strong>Dandelion</strong> places a flower (*) anywhere on the grid by clicking a cell.</li>
+                    <li><strong>Wind</strong> blows in one of 8 directions by clicking a compass button.</li>
+                    <li>When wind blows, seeds spread from ALL dandelions in that direction.</li>
+                    <li>Each wind direction can only be used once!</li>
+                    <li>After {{ num_turns }} turns each: <strong>Dandelions win</strong> if the board is full, otherwise <strong>Wind wins</strong>!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_HEIGHT = {{ board_height }};
+        const BOARD_WIDTH = {{ board_width }};
+        const NUM_TURNS = {{ num_turns }};
+        const DIRECTION_NAMES = {{ direction_names | tojson }};
+        const COL_LABELS = {{ col_labels | tojson }};
+
+        let gameState = null;
+
+        async function fetchGameState() {
+            const response = await fetch('/api/state');
+            gameState = await response.json();
+            renderGame();
+        }
+
+        async function newGame() {
+            const response = await fetch('/api/new', { method: 'POST' });
+            gameState = await response.json();
+            renderGame();
+        }
+
+        async function placeDandelion(row, col) {
+            if (gameState.phase !== 'dandelion' || gameState.game_over) return;
+            if (gameState.board[row][col] === 1) return;
+
+            const response = await fetch('/api/place', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ row, col })
+            });
+            gameState = await response.json();
+            renderGame();
+        }
+
+        async function blowWind(direction) {
+            if (gameState.phase !== 'wind' || gameState.game_over) return;
+
+            const dirIndex = DIRECTION_NAMES.indexOf(direction);
+            if (gameState.used_directions[dirIndex] === 1) return;
+
+            const response = await fetch('/api/wind', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ direction })
+            });
+            gameState = await response.json();
+            renderGame();
+        }
+
+        function renderGame() {
+            // Update stats
+            const displayTurn = Math.min(gameState.turn + 1, NUM_TURNS);
+            document.getElementById('statTurn').textContent = displayTurn;
+            document.getElementById('statFlowers').textContent = gameState.flowers;
+            document.getElementById('statSeeds').textContent = gameState.seeds;
+            document.getElementById('statEmpty').textContent = gameState.empty;
+
+            // Render entire board grid
+            const boardGrid = document.getElementById('boardGrid');
+            boardGrid.innerHTML = '';
+
+            // Add corner cell
+            const corner = document.createElement('div');
+            corner.className = 'corner';
+            boardGrid.appendChild(corner);
+
+            // Add column labels
+            for (let col = 0; col < BOARD_WIDTH; col++) {
+                const colLabel = document.createElement('div');
+                colLabel.className = 'col-label';
+                colLabel.textContent = COL_LABELS[col];
+                boardGrid.appendChild(colLabel);
+            }
+
+            // Add rows with row labels and cells
+            for (let row = 0; row < BOARD_HEIGHT; row++) {
+                // Add row label
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'row-label';
+                rowLabel.textContent = row + 1;
+                boardGrid.appendChild(rowLabel);
+
+                // Add cells for this row
+                for (let col = 0; col < BOARD_WIDTH; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    const value = gameState.board[row][col];
+
+                    if (value === 1) {
+                        cell.classList.add('dandelion');
+                        cell.innerHTML = '<span class="dandelion-icon">*</span>';
+                    } else if (value === 2) {
+                        cell.classList.add('seed');
+                        cell.innerHTML = '<span class="seed-icon"></span>';
+                    }
+
+                    if (gameState.phase === 'dandelion' && !gameState.game_over && value !== 1) {
+                        cell.classList.add('clickable');
+                        cell.addEventListener('click', () => placeDandelion(row, col));
+                    }
+
+                    boardGrid.appendChild(cell);
+                }
+            }
+
+            // Update compass buttons
+            document.querySelectorAll('.dir-btn').forEach(btn => {
+                const dir = btn.dataset.dir;
+                const dirIndex = DIRECTION_NAMES.indexOf(dir);
+                const isUsed = gameState.used_directions[dirIndex] === 1;
+                btn.disabled = isUsed || gameState.phase !== 'wind' || gameState.game_over;
+                btn.classList.toggle('used', isUsed);
+            });
+
+            // Update badges and turn display
+            const boardBadge = document.getElementById('boardBadge');
+            const compassBadge = document.getElementById('compassBadge');
+            const turnPlayer = document.getElementById('turnPlayer');
+            const turnGoal = document.getElementById('turnGoal');
+            const winnerAnnouncement = document.getElementById('winnerAnnouncement');
+
+            if (gameState.game_over) {
+                if (gameState.winner === 'dandelion') {
+                    boardBadge.textContent = 'Game Over';
+                    boardBadge.className = 'panel-badge active';
+                    compassBadge.textContent = 'Game Over';
+                    compassBadge.className = 'panel-badge active';
+                    turnPlayer.textContent = 'Dandelion Wins!';
+                    turnPlayer.className = 'turn-player';
+                    turnGoal.textContent = 'The meadow is covered!';
+                    turnGoal.className = 'turn-goal';
+                    winnerAnnouncement.innerHTML = '<div class="winner-announcement dandelion-wins">The Dandelions Win! The meadow is covered!</div>';
+                } else {
+                    boardBadge.textContent = 'Game Over';
+                    boardBadge.className = 'panel-badge waiting';
+                    compassBadge.textContent = 'Game Over';
+                    compassBadge.className = 'panel-badge waiting';
+                    turnPlayer.textContent = 'Wind Wins!';
+                    turnPlayer.className = 'turn-player wind';
+                    turnGoal.textContent = 'Empty spots remain!';
+                    turnGoal.className = 'turn-goal wind';
+                    winnerAnnouncement.innerHTML = '<div class="winner-announcement wind-wins">The Wind Wins! Empty spots remain!</div>';
+                }
+            } else {
+                winnerAnnouncement.innerHTML = '';
+                if (gameState.phase === 'dandelion') {
+                    boardBadge.textContent = "Dandelion's Turn";
+                    boardBadge.className = 'panel-badge active';
+                    compassBadge.textContent = 'Waiting';
+                    compassBadge.className = 'panel-badge waiting';
+                    turnPlayer.textContent = 'Dandelion';
+                    turnPlayer.className = 'turn-player';
+                    turnGoal.textContent = 'Try to fill the board';
+                    turnGoal.className = 'turn-goal';
+                } else {
+                    boardBadge.textContent = 'Waiting';
+                    boardBadge.className = 'panel-badge waiting';
+                    compassBadge.textContent = "Wind's Turn";
+                    compassBadge.className = 'panel-badge active';
+                    turnPlayer.textContent = 'Wind';
+                    turnPlayer.className = 'turn-player wind';
+                    turnGoal.textContent = 'Try to leave empty squares';
+                    turnGoal.className = 'turn-goal wind';
+                }
+            }
+        }
+
+        // Event listeners
+        document.getElementById('newGameBtn').addEventListener('click', newGame);
+        document.querySelectorAll('.dir-btn').forEach(btn => {
+            btn.addEventListener('click', () => blowWind(btn.dataset.dir));
+        });
+
+        // Initialize
+        fetchGameState();
+    </script>
+</body>
+</html>

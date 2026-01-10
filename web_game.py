@@ -113,9 +113,37 @@ HTML_TEMPLATE = '''
             color: white;
         }
 
-        .header-stats {
-            display: flex;
-            gap: 30px;
+        .header-turn-display {
+            text-align: right;
+        }
+
+        .header-turn-display .current-turn {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .header-turn-display .turn-player {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4ade80;
+        }
+
+        .header-turn-display .turn-player.wind {
+            color: #60a5fa;
+        }
+
+        .header-turn-display .turn-goal {
+            font-size: 0.85rem;
+            color: #4ade80;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .header-turn-display .turn-goal.wind {
+            color: #60a5fa;
         }
 
         .stat {
@@ -336,27 +364,11 @@ HTML_TEMPLATE = '''
             margin-top: 25px;
         }
 
-        .turn-display {
-            text-align: center;
+        .stats-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
             padding: 20px;
-        }
-
-        .current-turn {
-            font-size: 0.75rem;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .turn-player {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #4ade80;
-        }
-
-        .turn-player.wind {
-            color: #60a5fa;
         }
 
         .action-buttons {
@@ -520,13 +532,11 @@ HTML_TEMPLATE = '''
                 text-align: center;
             }
 
-            .header-stats {
-                gap: 15px;
-                flex-wrap: wrap;
-                justify-content: center;
+            .header-turn-display {
+                text-align: center;
             }
 
-            .stat-value {
+            .header-turn-display .turn-player {
                 font-size: 1.2rem;
             }
 
@@ -587,12 +597,14 @@ HTML_TEMPLATE = '''
             .dir-SW { bottom: 18px; left: 18px; }
             .dir-NW { top: 18px; left: 18px; }
 
-            .turn-display {
+            .stats-display {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
                 padding: 15px;
             }
 
-            .turn-player {
-                font-size: 1rem;
+            .stat-value {
+                font-size: 1.2rem;
             }
 
             .action-buttons {
@@ -611,7 +623,11 @@ HTML_TEMPLATE = '''
         }
 
         @media (max-width: 480px) {
-            .header-stats {
+            .header-turn-display .turn-player {
+                font-size: 1rem;
+            }
+
+            .stats-display {
                 gap: 10px;
             }
 
@@ -701,23 +717,10 @@ HTML_TEMPLATE = '''
                 <div class="logo-icon">*</div>
                 <h1>Dandelions</h1>
             </div>
-            <div class="header-stats">
-                <div class="stat">
-                    <div class="stat-value" id="statTurn">1</div>
-                    <div class="stat-label">Turn</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="statFlowers">0</div>
-                    <div class="stat-label">Flowers</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="statSeeds">0</div>
-                    <div class="stat-label">Seeds</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="statEmpty">25</div>
-                    <div class="stat-label">Empty</div>
-                </div>
+            <div class="header-turn-display">
+                <div class="current-turn">Current Turn</div>
+                <div class="turn-player" id="turnPlayer">Dandelion</div>
+                <div class="turn-goal" id="turnGoal">Try to fill the board</div>
             </div>
         </div>
 
@@ -764,12 +767,26 @@ HTML_TEMPLATE = '''
                 </div>
 
                 <div class="panel info-panel">
-                    <div class="turn-display">
-                        <div class="current-turn">Current Turn</div>
-                        <div class="turn-player" id="turnPlayer">Dandelion</div>
-                    </div>
                     <div class="action-buttons">
                         <button class="btn btn-primary" id="newGameBtn">New Game</button>
+                    </div>
+                    <div class="stats-display">
+                        <div class="stat">
+                            <div class="stat-value" id="statTurn">1</div>
+                            <div class="stat-label">Turn</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statFlowers">0</div>
+                            <div class="stat-label">Flowers</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statSeeds">0</div>
+                            <div class="stat-label">Seeds</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statEmpty">25</div>
+                            <div class="stat-label">Empty</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -778,11 +795,8 @@ HTML_TEMPLATE = '''
         <div id="winnerAnnouncement"></div>
 
         <div class="panel rules-panel">
-            <div class="panel-header">
-                <span class="panel-title">How to Play</span>
-            </div>
             <div class="panel-content">
-                <p class="rules-subtitle">A game of seeds and wind from "Math Games with Bad Drawings"</p>
+                <p class="rules-subtitle">A game of seeds and wind from the book "Math Games with Bad Drawings"</p>
                 <h3>Rules</h3>
                 <ul>
                     <li><strong>Dandelion</strong> places a flower (*) anywhere on the grid by clicking a cell.</li>
@@ -913,6 +927,7 @@ HTML_TEMPLATE = '''
             const boardBadge = document.getElementById('boardBadge');
             const compassBadge = document.getElementById('compassBadge');
             const turnPlayer = document.getElementById('turnPlayer');
+            const turnGoal = document.getElementById('turnGoal');
             const winnerAnnouncement = document.getElementById('winnerAnnouncement');
 
             if (gameState.game_over) {
@@ -923,6 +938,8 @@ HTML_TEMPLATE = '''
                     compassBadge.className = 'panel-badge active';
                     turnPlayer.textContent = 'Dandelion Wins!';
                     turnPlayer.className = 'turn-player';
+                    turnGoal.textContent = 'The meadow is covered!';
+                    turnGoal.className = 'turn-goal';
                     winnerAnnouncement.innerHTML = '<div class="winner-announcement dandelion-wins">The Dandelions Win! The meadow is covered!</div>';
                 } else {
                     boardBadge.textContent = 'Game Over';
@@ -931,6 +948,8 @@ HTML_TEMPLATE = '''
                     compassBadge.className = 'panel-badge waiting';
                     turnPlayer.textContent = 'Wind Wins!';
                     turnPlayer.className = 'turn-player wind';
+                    turnGoal.textContent = 'Empty spots remain!';
+                    turnGoal.className = 'turn-goal wind';
                     winnerAnnouncement.innerHTML = '<div class="winner-announcement wind-wins">The Wind Wins! Empty spots remain!</div>';
                 }
             } else {
@@ -942,6 +961,8 @@ HTML_TEMPLATE = '''
                     compassBadge.className = 'panel-badge waiting';
                     turnPlayer.textContent = 'Dandelion';
                     turnPlayer.className = 'turn-player';
+                    turnGoal.textContent = 'Try to fill the board';
+                    turnGoal.className = 'turn-goal';
                 } else {
                     boardBadge.textContent = 'Waiting';
                     boardBadge.className = 'panel-badge waiting';
@@ -949,6 +970,8 @@ HTML_TEMPLATE = '''
                     compassBadge.className = 'panel-badge active';
                     turnPlayer.textContent = 'Wind';
                     turnPlayer.className = 'turn-player wind';
+                    turnGoal.textContent = 'Try to leave empty squares';
+                    turnGoal.className = 'turn-goal wind';
                 }
             }
         }

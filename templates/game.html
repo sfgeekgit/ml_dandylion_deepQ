@@ -29,18 +29,36 @@
     </style>
 </head>
 <body>
-    <div class="dashboard">
+    <div class="dashboard" data-game-mode="{{ game_mode }}">
         <div class="header">
             <div class="logo">
-                <div class="logo-icon">*</div>
-                <h1>Dandelions</h1>
+                <a href="/" class="logo-link">
+                    <div class="logo-icon">*</div>
+                    <h1>Dandelions</h1>
+                </a>
             </div>
             <div class="header-turn-display">
                 <div class="current-turn">Current Turn</div>
                 <div class="turn-player" id="turnPlayer">Dandelion</div>
                 <div class="turn-goal" id="turnGoal">Try to fill the board</div>
             </div>
+            {% if game_mode == 'hvai' %}
+            <div class="ai-indicator" id="aiIndicator">
+                <span class="ai-badge">AI: Waiting</span>
+            </div>
+            {% endif %}
         </div>
+
+        {% if game_mode == 'aivsai' %}
+        <div class="spectator-controls">
+            <button class="btn" id="playPauseBtn">&#9658; Play</button>
+            <button class="btn" id="stepBtn">Step</button>
+            <label class="speed-control">
+                Speed: <input type="range" id="speedSlider" min="300" max="2000" value="1000">
+                <span id="speedValue">1.0s</span>
+            </label>
+        </div>
+        {% endif %}
 
         <div class="main-grid">
             <div class="panel board-panel">
@@ -133,8 +151,11 @@
         const NUM_TURNS = {{ num_turns }};
         const DIRECTION_NAMES = {{ direction_names | tojson }};
         const COL_LABELS = {{ col_labels | tojson }};
+        const GAME_MODE = '{{ game_mode }}';
 
         let gameState = null;
+        let autoPlayInterval = null;
+        let aiMoveInProgress = false;
 
         async function fetchGameState() {
             const response = await fetch('/api/state');
@@ -143,9 +164,107 @@
         }
 
         async function newGame() {
+            // For AI games, go back to setup to reconfigure
+            if (GAME_MODE === 'hvai') {
+                window.location.href = '/play/hvai';
+                return;
+            } else if (GAME_MODE === 'aivsai') {
+                window.location.href = '/play/aivsai';
+                return;
+            }
             const response = await fetch('/api/new', { method: 'POST' });
             gameState = await response.json();
             renderGame();
+        }
+
+        async function triggerAIMove() {
+            if (aiMoveInProgress || gameState.game_over) return;
+
+            aiMoveInProgress = true;
+            updateAIIndicator('thinking');
+
+            try {
+                const response = await fetch('/api/ai-move', { method: 'POST' });
+                gameState = await response.json();
+                renderGame();
+            } catch (error) {
+                console.error('AI move failed:', error);
+            } finally {
+                aiMoveInProgress = false;
+                updateAIIndicator('waiting');
+            }
+        }
+
+        function updateAIIndicator(status) {
+            const indicator = document.getElementById('aiIndicator');
+            if (!indicator) return;
+
+            const badge = indicator.querySelector('.ai-badge');
+            if (status === 'thinking') {
+                badge.textContent = 'AI: Thinking...';
+                badge.classList.add('thinking');
+            } else {
+                badge.textContent = 'AI: Waiting';
+                badge.classList.remove('thinking');
+            }
+        }
+
+        function checkAITurn() {
+            if (gameState.game_over) {
+                stopAutoPlay();
+                return;
+            }
+
+            if (GAME_MODE === 'hvai') {
+                const humanRole = gameState.ai_config?.human_role || 'dandelion';
+                const isAITurn = gameState.phase !== humanRole;
+                if (isAITurn && !aiMoveInProgress) {
+                    setTimeout(triggerAIMove, 500);
+                }
+            }
+        }
+
+        function toggleAutoPlay() {
+            if (autoPlayInterval) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        }
+
+        function startAutoPlay() {
+            const speed = parseInt(document.getElementById('speedSlider')?.value || 1000);
+            autoPlayInterval = setInterval(() => {
+                if (!gameState.game_over && !aiMoveInProgress) {
+                    triggerAIMove();
+                } else if (gameState.game_over) {
+                    stopAutoPlay();
+                }
+            }, speed);
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.innerHTML = '&#10074;&#10074; Pause';
+        }
+
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.innerHTML = '&#9658; Play';
+        }
+
+        function updateSpeedDisplay() {
+            const slider = document.getElementById('speedSlider');
+            const display = document.getElementById('speedValue');
+            if (slider && display) {
+                display.textContent = (slider.value / 1000).toFixed(1) + 's';
+                // If auto-playing, restart with new speed
+                if (autoPlayInterval) {
+                    stopAutoPlay();
+                    startAutoPlay();
+                }
+            }
         }
 
         async function placeDandelion(row, col) {
@@ -292,6 +411,9 @@
                     turnGoal.className = 'turn-goal wind';
                 }
             }
+
+            // Check if AI should make a move (for hvai mode)
+            checkAITurn();
         }
 
         // Event listeners
@@ -299,6 +421,13 @@
         document.querySelectorAll('.dir-btn').forEach(btn => {
             btn.addEventListener('click', () => blowWind(btn.dataset.dir));
         });
+
+        // Spectator controls for AI vs AI mode
+        if (GAME_MODE === 'aivsai') {
+            document.getElementById('playPauseBtn')?.addEventListener('click', toggleAutoPlay);
+            document.getElementById('stepBtn')?.addEventListener('click', triggerAIMove);
+            document.getElementById('speedSlider')?.addEventListener('input', updateSpeedDisplay);
+        }
 
         // Initialize
         fetchGameState();

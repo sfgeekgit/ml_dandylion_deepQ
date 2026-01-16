@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %} Setup - Dandelions</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="dashboard setup-page">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">*</div>
+                <h1>Dandelions</h1>
+            </div>
+            <a href="/" class="btn btn-secondary">Back</a>
+        </div>
+
+        <h2 class="setup-title">{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %} Setup</h2>
+
+        <div class="setup-form">
+            {% if mode == 'hvai' %}
+            <!-- Human vs AI: Choose role and opponent model -->
+            <div class="form-group">
+                <label>Play as:</label>
+                <div class="role-selector">
+                    <button type="button" class="role-btn active" data-role="dandelion" onclick="selectRole('dandelion')">
+                        <span class="role-icon">*</span> Dandelion (Seeds)
+                    </button>
+                    <button type="button" class="role-btn" data-role="wind" onclick="selectRole('wind')">
+                        <span class="role-icon">&#128168;</span> Wind
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label id="modelLabel">AI Opponent (Wind model):</label>
+                <select id="modelSelect" onchange="updateParamsDisplay()">
+                    <optgroup id="modelOptgroup" label="Wind Models">
+                        {% for model in wind_models %}
+                        <option value="wind:{{ model.id }}" data-params='{{ model.params | tojson }}'>
+                            {{ model.id }} ({{ model.params.epochs }} epochs, {{ model.params.layer_count }} layers)
+                        </option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+
+            {% else %}
+            <!-- AI vs AI: Choose both models -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Seed Brain (Dandelion):</label>
+                    <select id="seedModelSelect" onchange="updateSeedParams()">
+                        {% for model in seed_models %}
+                        <option value="{{ model.id }}" data-params='{{ model.params | tojson }}'>
+                            {{ model.id }} ({{ model.params.epochs }} epochs)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Wind Brain:</label>
+                    <select id="windModelSelect" onchange="updateWindParams()">
+                        {% for model in wind_models %}
+                        <option value="{{ model.id }}" data-params='{{ model.params | tojson }}'>
+                            {{ model.id }} ({{ model.params.epochs }} epochs)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label>Temperature (AI randomness): <span id="tempValue">0.0</span></label>
+                <input type="range" id="tempSlider" min="0" max="10" step="0.1" value="0" oninput="updateTempDisplay()">
+                <p class="help-text">0 = deterministic (always picks best move), higher = more random</p>
+            </div>
+
+            {% if mode == 'aivsai' %}
+            <div class="form-group">
+                <label>Wind Temperature: <span id="windTempValue">0.0</span></label>
+                <input type="range" id="windTempSlider" min="0" max="10" step="0.1" value="0" oninput="updateWindTempDisplay()">
+            </div>
+            {% endif %}
+
+            <div class="params-display" id="paramsDisplay">
+                <h4>Model Hyperparameters</h4>
+                <div id="paramsContent">Select a model to see its training parameters</div>
+            </div>
+
+            {% if mode == 'aivsai' %}
+            <div class="params-row">
+                <div class="params-display" id="seedParamsDisplay">
+                    <h4>Seed Model Parameters</h4>
+                    <div id="seedParamsContent">Loading...</div>
+                </div>
+                <div class="params-display" id="windParamsDisplay">
+                    <h4>Wind Model Parameters</h4>
+                    <div id="windParamsContent">Loading...</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <button class="btn btn-primary btn-large" id="startGameBtn" onclick="startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <script>
+        const MODE = '{{ mode }}';
+        let selectedRole = 'dandelion';
+
+        // Store model data from server
+        const seedModels = {{ seed_models | tojson }};
+        const windModels = {{ wind_models | tojson }};
+
+        function selectRole(role) {
+            selectedRole = role;
+
+            // Update button states
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.role === role);
+            });
+
+            // Update model dropdown based on role
+            const select = document.getElementById('modelSelect');
+            const optgroup = document.getElementById('modelOptgroup');
+            const label = document.getElementById('modelLabel');
+
+            // Clear current options
+            select.innerHTML = '';
+
+            if (role === 'dandelion') {
+                // Human plays dandelion, AI plays wind
+                label.textContent = 'AI Opponent (Wind model):';
+                optgroup.label = 'Wind Models';
+                windModels.forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = 'wind:' + model.id;
+                    opt.dataset.params = JSON.stringify(model.params);
+                    opt.textContent = `${model.id} (${model.params.epochs} epochs, ${model.params.layer_count} layers)`;
+                    select.appendChild(opt);
+                });
+            } else {
+                // Human plays wind, AI plays dandelion
+                label.textContent = 'AI Opponent (Seed model):';
+                optgroup.label = 'Seed Models';
+                seedModels.forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = 'seeds:' + model.id;
+                    opt.dataset.params = JSON.stringify(model.params);
+                    opt.textContent = `${model.id} (${model.params.epochs} epochs, ${model.params.layer_count} layers)`;
+                    select.appendChild(opt);
+                });
+            }
+
+            updateParamsDisplay();
+        }
+
+        function formatParams(params) {
+            if (!params || !params.raw) return 'No parameters available';
+
+            const raw = params.raw;
+            let html = '<table class="params-table">';
+
+            // Key parameters
+            html += `<tr><td>EPOCHS</td><td>${params.epochs}</td></tr>`;
+            html += `<tr><td>Architecture</td><td>${params.architecture}</td></tr>`;
+            html += `<tr><td>GAMMA</td><td>${params.gamma}</td></tr>`;
+            html += `<tr><td>LEARNING_RATE</td><td>${params.learning_rate}</td></tr>`;
+
+            // Rewards
+            if (params.rewards) {
+                const rewardsStr = Object.entries(params.rewards)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(', ');
+                html += `<tr><td>reward_vals</td><td>{${rewardsStr}}</td></tr>`;
+            }
+
+            // Exploration steps
+            if (params.exploration_steps && Object.keys(params.exploration_steps).length > 0) {
+                const stepsStr = Object.entries(params.exploration_steps)
+                    .map(([k, v]) => `${k}%: ${v}`)
+                    .join(', ');
+                html += `<tr><td>EXPLORATION_PROB_STEPS</td><td class="small-text">{${stepsStr}}</td></tr>`;
+            }
+
+            html += `<tr><td>device</td><td>${params.device}</td></tr>`;
+            html += '</table>';
+
+            return html;
+        }
+
+        function updateParamsDisplay() {
+            if (MODE === 'hvai') {
+                const select = document.getElementById('modelSelect');
+                const option = select.options[select.selectedIndex];
+                if (option && option.dataset.params) {
+                    const params = JSON.parse(option.dataset.params);
+                    document.getElementById('paramsContent').innerHTML = formatParams(params);
+                }
+            }
+        }
+
+        function updateSeedParams() {
+            const select = document.getElementById('seedModelSelect');
+            const option = select.options[select.selectedIndex];
+            if (option && option.dataset.params) {
+                const params = JSON.parse(option.dataset.params);
+                document.getElementById('seedParamsContent').innerHTML = formatParams(params);
+            }
+        }
+
+        function updateWindParams() {
+            const select = document.getElementById('windModelSelect');
+            const option = select.options[select.selectedIndex];
+            if (option && option.dataset.params) {
+                const params = JSON.parse(option.dataset.params);
+                document.getElementById('windParamsContent').innerHTML = formatParams(params);
+            }
+        }
+
+        function updateTempDisplay() {
+            const value = document.getElementById('tempSlider').value;
+            document.getElementById('tempValue').textContent = value;
+        }
+
+        function updateWindTempDisplay() {
+            const value = document.getElementById('windTempSlider').value;
+            document.getElementById('windTempValue').textContent = value;
+        }
+
+        async function startGame() {
+            let config = {};
+            let gameUrl = '';
+
+            if (MODE === 'hvai') {
+                const select = document.getElementById('modelSelect');
+                const [modelType, modelId] = select.value.split(':');
+                const temp = parseFloat(document.getElementById('tempSlider').value);
+
+                config = {
+                    game_mode: 'hvai',
+                    ai_config: {
+                        human_role: selectedRole,
+                        model_type: modelType,
+                        model_id: modelId,
+                        ai_temp: temp
+                    }
+                };
+                gameUrl = '/play/hvai/game';
+            } else {
+                const seedId = document.getElementById('seedModelSelect').value;
+                const windId = document.getElementById('windModelSelect').value;
+                const seedTemp = parseFloat(document.getElementById('tempSlider').value);
+                const windTemp = parseFloat(document.getElementById('windTempSlider').value);
+
+                config = {
+                    game_mode: 'aivsai',
+                    ai_config: {
+                        seed_model_id: seedId,
+                        wind_model_id: windId,
+                        seed_temp: seedTemp,
+                        wind_temp: windTemp
+                    }
+                };
+                gameUrl = '/play/aivsai/game';
+            }
+
+            // Create new game with config
+            const response = await fetch('/api/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                window.location.href = gameUrl;
+            } else {
+                alert('Failed to create game');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (MODE === 'hvai') {
+                updateParamsDisplay();
+            } else {
+                updateSeedParams();
+                updateWindParams();
+            }
+        });
+    </script>
+</body>
+</html>

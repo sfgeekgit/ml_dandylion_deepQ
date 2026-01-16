@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No Models Available - Dandelions</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="dashboard landing-page">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">*</div>
+                <h1>Dandelions</h1>
+            </div>
+            <a href="/" class="btn btn-secondary">Back</a>
+        </div>
+
+        <div class="landing-content">
+            <div class="no-models-message">
+                <div class="no-models-icon">&#129302;</div>
+                <h2>No Models Available</h2>
+                <p>{{ message if message else 'You need to train at least one AI model to use this game mode.' }}</p>
+
+                <div class="instructions">
+                    <h3>How to Train Models</h3>
+                    <p>Run the training scripts from the command line:</p>
+                    <div class="code-block">
+                        <code>python seedBrain.py</code>
+                        <span class="code-desc">Train a Dandelion (seed) brain</span>
+                    </div>
+                    <div class="code-block">
+                        <code>python windBrain.py</code>
+                        <span class="code-desc">Train a Wind brain</span>
+                    </div>
+                    <p class="note">Training may take a while depending on the number of epochs configured.</p>
+                </div>
+
+                <a href="/" class="btn btn-primary">Return to Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

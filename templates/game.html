@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dandelions - A Game of Seeds and Wind</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css') }}">
     <style>
         /* Dynamic board grid dimensions from Flask */
         .board-grid {
@@ -32,7 +32,7 @@
     <div class="dashboard" data-game-mode="{{ game_mode }}">
         <div class="header">
             <div class="logo">
-                <a href="/" class="logo-link">
+                <a href="{{ url_for('game.landing') }}" class="logo-link">
                     <div class="logo-icon">*</div>
                     <h1>Dandelions</h1>
                 </a>
@@ -152,13 +152,14 @@
         const DIRECTION_NAMES = {{ direction_names | tojson }};
         const COL_LABELS = {{ col_labels | tojson }};
         const GAME_MODE = '{{ game_mode }}';
+        const URL_PREFIX = '{{ url_prefix }}';
 
         let gameState = null;
         let autoPlayInterval = null;
         let aiMoveInProgress = false;
 
         async function fetchGameState() {
-            const response = await fetch('/api/state');
+            const response = await fetch(URL_PREFIX + '/api/state');
             gameState = await response.json();
             renderGame();
         }
@@ -166,13 +167,13 @@
         async function newGame() {
             // For AI games, go back to setup to reconfigure
             if (GAME_MODE === 'hvai') {
-                window.location.href = '/play/hvai';
+                window.location.href = URL_PREFIX + '/play/hvai';
                 return;
             } else if (GAME_MODE === 'aivsai') {
-                window.location.href = '/play/aivsai';
+                window.location.href = URL_PREFIX + '/play/aivsai';
                 return;
             }
-            const response = await fetch('/api/new', { method: 'POST' });
+            const response = await fetch(URL_PREFIX + '/api/new', { method: 'POST' });
             gameState = await response.json();
             renderGame();
         }
@@ -184,7 +185,7 @@
             updateAIIndicator('thinking');
 
             try {
-                const response = await fetch('/api/ai-move', { method: 'POST' });
+                const response = await fetch(URL_PREFIX + '/api/ai-move', { method: 'POST' });
                 gameState = await response.json();
                 renderGame();
             } catch (error) {
@@ -271,7 +272,7 @@
             if (gameState.phase !== 'dandelion' || gameState.game_over) return;
             if (gameState.board[row][col] === 1) return;
 
-            const response = await fetch('/api/place', {
+            const response = await fetch(URL_PREFIX + '/api/place', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ row, col })
@@ -286,7 +287,7 @@
             const dirIndex = DIRECTION_NAMES.indexOf(direction);
             if (gameState.used_directions[dirIndex] === 1) return;
 
-            const response = await fetch('/api/wind', {
+            const response = await fetch(URL_PREFIX + '/api/wind', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ direction })

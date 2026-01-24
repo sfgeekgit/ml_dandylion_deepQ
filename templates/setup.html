@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %} Setup - Dandelions</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="dashboard setup-page">
@@ -14,7 +14,7 @@
                 <div class="logo-icon">*</div>
                 <h1>Dandelions</h1>
             </div>
-            <a href="/" class="btn btn-secondary">Back</a>
+            <a href="{{ url_for('game.landing') }}" class="btn btn-secondary">Back</a>
         </div>
 
         <h2 class="setup-title">{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %} Setup</h2>
@@ -110,6 +110,7 @@
 
     <script>
         const MODE = '{{ mode }}';
+        const URL_PREFIX = '{{ url_prefix }}';
         let selectedRole = 'dandelion';
 
         // Store model data from server
@@ -250,7 +251,7 @@
                         ai_temp: temp
                     }
                 };
-                gameUrl = '/play/hvai/game';
+                gameUrl = URL_PREFIX + '/play/hvai/game';
             } else {
                 const seedId = document.getElementById('seedModelSelect').value;
                 const windId = document.getElementById('windModelSelect').value;
@@ -266,11 +267,11 @@
                         wind_temp: windTemp
                     }
                 };
-                gameUrl = '/play/aivsai/game';
+                gameUrl = URL_PREFIX + '/play/aivsai/game';
             }
 
             // Create new game with config
-            const response = await fetch('/api/new', {
+            const response = await fetch(URL_PREFIX + '/api/new', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(config)

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dandelions - A Game of Seeds and Wind</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="dashboard landing-page">
@@ -20,13 +20,13 @@
             <p class="subtitle">A game of seeds and wind from "Math Games with Bad Drawings" by Ben Orlin</p>
 
             <div class="game-modes">
-                <a href="/play/hvh" class="mode-card">
+                <a href="{{ url_for('game.play_hvh') }}" class="mode-card">
                     <div class="mode-icon">&#128101;</div>
                     <h2>Human vs Human</h2>
                     <p>Play against a friend on the same device</p>
                 </a>
 
-                <a href="/play/hvai" class="mode-card {% if not has_seed_models and not has_wind_models %}disabled{% endif %}">
+                <a href="{{ url_for('game.setup_hvai') }}" class="mode-card {% if not has_seed_models and not has_wind_models %}disabled{% endif %}">
                     <div class="mode-icon">&#129302;</div>
                     <h2>Human vs AI</h2>
                     <p>Challenge a trained neural network</p>
@@ -35,7 +35,7 @@
                     {% endif %}
                 </a>
 
-                <a href="/play/aivsai" class="mode-card {% if not has_seed_models or not has_wind_models %}disabled{% endif %}">
+                <a href="{{ url_for('game.setup_aivsai') }}" class="mode-card {% if not has_seed_models or not has_wind_models %}disabled{% endif %}">
                     <div class="mode-icon">&#128064;</div>
                     <h2>AI vs AI</h2>
                     <p>Watch neural networks compete</p>

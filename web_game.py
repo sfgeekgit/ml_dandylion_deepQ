@@ -4,9 +4,12 @@ A Flask web app for the Dandelion game from "Math Games with Bad Drawings"
 Supports Human vs Human, Human vs AI, and AI vs AI modes.
 """
 
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, Blueprint, render_template, jsonify, request, session
 import copy
 import os
+
+# URL prefix - change this ONE place to move the app to a different path
+URL_PREFIX = '/dandelion'
 
 from game import (
     initialize_board, place_dandelion, spread_seeds, check_dandelion_win,
@@ -20,6 +23,10 @@ from model_utils import (
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# Create blueprint with URL prefix and static files
+game = Blueprint('game', __name__, url_prefix=URL_PREFIX,
+                 static_folder='static', static_url_path='/static')
 
 NUM_TURNS = 7
 
@@ -95,11 +102,12 @@ def get_game_template_vars(game_mode='hvh'):
         'row_labels': row_labels,
         'directions_clockwise': directions_clockwise,
         'direction_names': direction_names,
-        'game_mode': game_mode
+        'game_mode': game_mode,
+        'url_prefix': URL_PREFIX
     }
 
 
-@app.route('/')
+@game.route('/')
 def landing():
     """Landing page with game mode selection."""
     seed_models = discover_models('seeds')
@@ -109,23 +117,24 @@ def landing():
         has_seed_models=len(seed_models) > 0,
         has_wind_models=len(wind_models) > 0,
         seed_count=len(seed_models),
-        wind_count=len(wind_models)
+        wind_count=len(wind_models),
+        url_prefix=URL_PREFIX
     )
 
 
-@app.route('/play/hvh')
+@game.route('/play/hvh')
 def play_hvh():
     """Human vs Human game."""
     return render_template('game.html', **get_game_template_vars('hvh'))
 
 
-@app.route('/play/hvai')
+@game.route('/play/hvai')
 def setup_hvai():
     """Setup page for Human vs AI."""
     seed_models = discover_models('seeds')
     wind_models = discover_models('wind')
     if not seed_models and not wind_models:
-        return render_template('no_models.html')
+        return render_template('no_models.html', url_prefix=URL_PREFIX)
 
     # Load params for each model
     seed_models_with_params = []
@@ -144,17 +153,18 @@ def setup_hvai():
         'setup.html',
         mode='hvai',
         seed_models=seed_models_with_params,
-        wind_models=wind_models_with_params
+        wind_models=wind_models_with_params,
+        url_prefix=URL_PREFIX
     )
 
 
-@app.route('/play/hvai/game')
+@game.route('/play/hvai/game')
 def play_hvai():
     """Human vs AI game page."""
     return render_template('game.html', **get_game_template_vars('hvai'))
 
 
-@app.route('/play/aivsai')
+@game.route('/play/aivsai')
 def setup_aivsai():
     """Setup page for AI vs AI."""
     seed_models = discover_models('seeds')
@@ -162,7 +172,8 @@ def setup_aivsai():
     if not seed_models or not wind_models:
         return render_template(
             'no_models.html',
-            message="Need at least one seed AND one wind model for AI vs AI"
+            message="Need at least one seed AND one wind model for AI vs AI",
+            url_prefix=URL_PREFIX
         )
 
     # Load params for each model
@@ -178,20 +189,21 @@ def setup_aivsai():
         'setup.html',
         mode='aivsai',
         seed_models=seed_models,
-        wind_models=wind_models
+        wind_models=wind_models,
+        url_prefix=URL_PREFIX
     )
 
 
-@app.route('/play/aivsai/game')
+@game.route('/play/aivsai/game')
 def play_aivsai():
     """AI vs AI spectator game page."""
     return render_template('game.html', **get_game_template_vars('aivsai'))
 
-@app.route('/api/state')
+@game.route('/api/state')
 def get_state():
     return jsonify(add_stats(get_game_state()))
 
-@app.route('/api/new', methods=['POST'])
+@game.route('/api/new', methods=['POST'])
 def new_game():
     data = request.json or {}
     game_mode = data.get('game_mode', 'hvh')
@@ -202,7 +214,7 @@ def new_game():
     return jsonify(add_stats(game))
 
 
-@app.route('/api/models/<model_type>')
+@game.route('/api/models/<model_type>')
 def list_models(model_type):
     """List available models of a given type."""
     if model_type not in ['seeds', 'wind']:
@@ -211,7 +223,7 @@ def list_models(model_type):
     return jsonify({'models': models})
 
 
-@app.route('/api/models/<model_type>/<model_id>/params')
+@game.route('/api/models/<model_type>/<model_id>/params')
 def get_model_params(model_type, model_id):
     """Get hyperparameters for a specific model."""
     if model_type not in ['seeds', 'wind']:
@@ -223,7 +235,7 @@ def get_model_params(model_type, model_id):
     return jsonify(display)
 
 
-@app.route('/api/ai-move', methods=['POST'])
+@game.route('/api/ai-move', methods=['POST'])
 def ai_move():
     """Execute AI move for current phase."""
     game = get_game_state()
@@ -317,7 +329,7 @@ def ai_move():
     save_game_state(game)
     return jsonify(add_stats(game))
 
-@app.route('/api/place', methods=['POST'])
+@game.route('/api/place', methods=['POST'])
 def place():
     data = request.json
     row, col = data['row'], data['col']
@@ -342,7 +354,7 @@ def place():
     save_game_state(game)
     return jsonify(add_stats(game))
 
-@app.route('/api/wind', methods=['POST'])
+@game.route('/api/wind', methods=['POST'])
 def wind():
     data = request.json
     direction = data['direction']
@@ -376,6 +388,9 @@ def wind():
 
     save_game_state(game)
     return jsonify(add_stats(game))
+
+# Register the blueprint
+app.register_blueprint(game)
 
 if __name__ == '__main__':
     app.run(port=5002, debug=True)

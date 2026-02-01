@@ -37,28 +37,48 @@
                     <h1>Dandelions</h1>
                 </a>
             </div>
-            <div class="header-turn-display">
-                <div class="current-turn">Current Turn</div>
-                <div class="turn-player" id="turnPlayer">Dandelion</div>
-                <div class="turn-goal" id="turnGoal">Try to fill the board</div>
+            <div class="header-buttons">
+              <a href="https://github.com/sfgeekgit/ml_dandylion_deepQ" target="_blank" class="back-to-menu-btn">GitHub</a>
+	      <a href="{{ url_for('game.landing') }}" class="back-to-menu-btn">Home</a>
             </div>
-            {% if game_mode == 'hvai' %}
-            <div class="ai-indicator" id="aiIndicator">
-                <span class="ai-badge">AI: Waiting</span>
             </div>
-            {% endif %}
-        </div>
 
         {% if game_mode == 'aivsai' %}
         <div class="spectator-controls">
             <button class="btn" id="playPauseBtn">&#9658; Play</button>
             <button class="btn" id="stepBtn">Step</button>
-            <label class="speed-control">
-                Speed: <input type="range" id="speedSlider" min="300" max="2000" value="1000">
-                <span id="speedValue">1.0s</span>
-            </label>
         </div>
         {% endif %}
+
+        <div class="rematch-warning" id="rematchWarning" style="display: none;">
+            ⚠️ Temperature is 0 for both models - this will be the exact same game again
+        </div>
+
+        <div class="game-status-banner" id="gameStatusBanner">
+            <div class="model-info seeds-info">
+                <div>
+                    <span class="model-label">SEEDS</span>
+                    <span class="model-name" id="seedsModelName">--</span>
+                </div>
+            </div>
+            <div class="status-center">
+                <!-- During game: shows turn and last move -->
+                <div class="status-playing" id="statusPlaying">
+                    <div class="turn-info" id="turnInfo">Dandelion's Turn</div>
+                    <div class="last-move" id="lastMove"></div>
+                </div>
+                <!-- After game: shows winner announcement -->
+                <div class="status-gameover" id="statusGameover" style="display: none;">
+                    <div id="winnerBanner"></div>
+                </div>
+            </div>
+            <div class="model-info wind-info">
+                <div>
+                    <span class="model-label">WIND</span>
+                    <span class="model-name" id="windModelName">--</span>
+                </div>
+            </div>
+        </div>
 
         <div class="main-grid">
             <div class="panel board-panel">
@@ -104,6 +124,7 @@
 
                 <div class="panel info-panel">
                     <div class="action-buttons">
+                        <button class="btn btn-secondary" id="rematchBtn">Rematch</button>
                         <button class="btn btn-primary" id="newGameBtn">New Game</button>
                     </div>
                     <div class="stats-display">
@@ -128,8 +149,6 @@
             </div>
         </div>
 
-        <div id="winnerAnnouncement"></div>
-
         <div class="panel rules-panel">
             <div class="panel-content">
                 <p class="rules-subtitle">A game of seeds and wind from the book "Math Games with Bad Drawings"</p>
@@ -141,6 +160,13 @@
                     <li>Each wind direction can only be used once!</li>
                     <li>After {{ num_turns }} turns each: <strong>Dandelions win</strong> if the board is full, otherwise <strong>Wind wins</strong>!</li>
                 </ul>
+            </div>
+        </div>
+
+        <div class="panel model-params-panel" id="modelParamsPanel" style="display: none;">
+            <div class="panel-content">
+                <h3>Model Configuration</h3>
+                <div id="modelParamsContent"></div>
             </div>
         </div>
     </div>
@@ -157,25 +183,220 @@
         let gameState = null;
         let autoPlayInterval = null;
         let aiMoveInProgress = false;
+        let lastMoveText = '';
 
         async function fetchGameState() {
             const response = await fetch(URL_PREFIX + '/api/state');
             gameState = await response.json();
+            updateModelNames();
+            displayModelParams();
             renderGame();
+
+            // Auto-start AI vs AI games
+            if (GAME_MODE === 'aivsai' && !gameState.game_over) {
+                startAutoPlay();
+            }
+        }
+
+        function updateModelNames() {
+            // Update model names in the banner
+            const seedsModelName = document.getElementById('seedsModelName');
+            const windModelName = document.getElementById('windModelName');
+
+            if (GAME_MODE === 'aivsai') {
+                const seedModel = gameState.ai_config?.seed_model_id || '--';
+                const windModel = gameState.ai_config?.wind_model_id || '--';
+                seedsModelName.innerHTML = '<br>Model ' + seedModel;
+                windModelName.innerHTML = '<br>Model ' + windModel;
+            } else if (GAME_MODE === 'hvai') {
+                const humanRole = gameState.ai_config?.human_role || 'dandelion';
+                const modelId = gameState.ai_config?.model_id || '--';
+                const modelType = gameState.ai_config?.model_type || '';
+
+                if (humanRole === 'dandelion') {
+                    seedsModelName.innerHTML = '<br>Human';
+                    windModelName.innerHTML = '<br>Model ' + modelId;
+                } else {
+                    seedsModelName.innerHTML = '<br>Model ' + modelId;
+                    windModelName.innerHTML = '<br>Human';
+                }
+            } else {
+                seedsModelName.innerHTML = '<br>Human';
+                windModelName.innerHTML = '<br>Human';
+            }
+        }
+
+        async function displayModelParams() {
+            const panel = document.getElementById('modelParamsPanel');
+            const content = document.getElementById('modelParamsContent');
+
+            if (GAME_MODE === 'aivsai' || GAME_MODE === 'hvai') {
+                panel.style.display = 'block';
+                let html = '<div class="params-grid">';
+
+                if (GAME_MODE === 'aivsai') {
+                    const seedModel = gameState.ai_config?.seed_model_id || 'N/A';
+                    const windModel = gameState.ai_config?.wind_model_id || 'N/A';
+                    const seedTemp = gameState.ai_config?.seed_temp || 0;
+                    const windTemp = gameState.ai_config?.wind_temp || 0;
+
+                    // Fetch seed model params
+                    html += '<div class="param-section">';
+                    html += '<h4 style="color: #4ade80;">Seed Brain (Model ' + seedModel + ')</h4>';
+                    html += '<h4 style="color: #4ade80;">Temperature: ' + seedTemp + '</h4>';
+                    try {
+                        const seedParamsResp = await fetch(URL_PREFIX + '/api/models/seeds/' + seedModel + '/params');
+                        if (seedParamsResp.ok) {
+                            const seedParams = await seedParamsResp.json();
+                            html += formatParamsTable(seedParams);
+                        }
+                    } catch (e) {
+                        html += '<p style="color: #666;">Could not load hyperparameters</p>';
+                    }
+                    html += '</div>';
+
+                    // Fetch wind model params
+                    html += '<div class="param-section">';
+                    html += '<h4 style="color: #60a5fa;">Wind Brain (Model ' + windModel + ')</h4>';
+                    html += '<h4 style="color: #60a5fa;">Temperature: ' + windTemp + '</h4>';
+                    try {
+                        const windParamsResp = await fetch(URL_PREFIX + '/api/models/wind/' + windModel + '/params');
+                        if (windParamsResp.ok) {
+                            const windParams = await windParamsResp.json();
+                            html += formatParamsTable(windParams);
+                        }
+                    } catch (e) {
+                        html += '<p style="color: #666;">Could not load hyperparameters</p>';
+                    }
+                    html += '</div>';
+                } else {
+                    const modelId = gameState.ai_config?.model_id || 'N/A';
+                    const temp = gameState.ai_config?.ai_temp || 0;
+                    const modelType = gameState.ai_config?.model_type || '';
+                    const modelColor = modelType === 'seeds' ? '#4ade80' : '#60a5fa';
+
+                    html += '<div class="param-section">';
+                    html += '<h4 style="color: ' + modelColor + ';">AI Model (' + modelType + ' ' + modelId + ')</h4>';
+                    html += '<h4 style="color: ' + modelColor + ';">Temperature: ' + temp + '</h4>';
+                    try {
+                        const paramsResp = await fetch(URL_PREFIX + '/api/models/' + modelType + '/' + modelId + '/params');
+                        if (paramsResp.ok) {
+                            const params = await paramsResp.json();
+                            html += formatParamsTable(params);
+                        }
+                    } catch (e) {
+                        html += '<p style="color: #666;">Could not load hyperparameters</p>';
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+                content.innerHTML = html;
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        function formatParamsTable(params) {
+            let html = '<table class="params-table" style="margin-top: 10px; width: 100%;">';
+
+            if (params.epochs) html += '<tr><td>Epochs</td><td>' + params.epochs + '</td></tr>';
+            if (params.architecture) html += '<tr><td>Architecture</td><td>' + params.architecture + '</td></tr>';
+            if (params.gamma !== undefined) html += '<tr><td>Gamma</td><td>' + params.gamma + '</td></tr>';
+            if (params.learning_rate) html += '<tr><td>Learning Rate</td><td>' + params.learning_rate + '</td></tr>';
+            if (params.batch_size) html += '<tr><td>Batch Size</td><td>' + params.batch_size + '</td></tr>';
+            if (params.buffer_size) html += '<tr><td>Buffer Size</td><td>' + params.buffer_size + '</td></tr>';
+            if (params.device) html += '<tr><td>Device</td><td>' + params.device + '</td></tr>';
+
+            if (params.rewards) {
+                const rewardsStr = Object.entries(params.rewards)
+                    .map(([k, v]) => k + '=' + v)
+                    .join(', ');
+                html += '<tr><td>Rewards</td><td style="font-size: 0.8rem;">{' + rewardsStr + '}</td></tr>';
+            }
+
+            if (params.exploration_steps && Object.keys(params.exploration_steps).length > 0) {
+                const stepsStr = Object.entries(params.exploration_steps)
+                    .map(([k, v]) => k + '%: ' + v)
+                    .join(', ');
+                html += '<tr><td>Exploration Steps</td><td style="font-size: 0.8rem;">{' + stepsStr + '}</td></tr>';
+            }
+
+            html += '</table>';
+            return html;
+        }
+
+        async function rematch() {
+            // Check if we should show deterministic warning
+            const warningDiv = document.getElementById('rematchWarning');
+            if (GAME_MODE === 'aivsai') {
+                const seedTemp = gameState.ai_config?.seed_temp || 0;
+                const windTemp = gameState.ai_config?.wind_temp || 0;
+                if (seedTemp === 0 && windTemp === 0) {
+                    warningDiv.style.display = 'block';
+                } else {
+                    warningDiv.style.display = 'none';
+                }
+            }
+
+            const response = await fetch(URL_PREFIX + '/api/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(gameState.game_mode === 'hvh' ? { game_mode: 'hvh' } : {
+                    game_mode: gameState.game_mode,
+                    ai_config: gameState.ai_config
+                })
+            });
+
+            if (response.ok) {
+                gameState = await response.json();
+                lastMoveText = '';
+                renderGame();
+
+                // Auto-start AI vs AI after rematch
+                if (GAME_MODE === 'aivsai' && !gameState.game_over) {
+                    startAutoPlay();
+                }
+            }
         }
 
         async function newGame() {
+            // Hide warning when starting new game
+            document.getElementById('rematchWarning').style.display = 'none';
+
             // For AI games, go back to setup to reconfigure
             if (GAME_MODE === 'hvai') {
                 window.location.href = URL_PREFIX + '/play/hvai';
                 return;
             } else if (GAME_MODE === 'aivsai') {
-                window.location.href = URL_PREFIX + '/play/aivsai';
+                // Pass current config as URL parameters
+                const config = gameState.ai_config || {};
+                const params = new URLSearchParams({
+                    seed: config.seed_model_id || '',
+                    wind: config.wind_model_id || '',
+                    seed_temp: config.seed_temp || '0',
+                    wind_temp: config.wind_temp || '0'
+                });
+                window.location.href = URL_PREFIX + '/play/aivsai?' + params.toString();
                 return;
             }
-            const response = await fetch(URL_PREFIX + '/api/new', { method: 'POST' });
-            gameState = await response.json();
-            renderGame();
+
+            // For HvH, create new game
+            const response = await fetch(URL_PREFIX + '/api/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game_mode: 'hvh' })
+            });
+
+            if (response.ok) {
+                gameState = await response.json();
+                lastMoveText = '';  // Clear last move
+                renderGame();
+            } else {
+                console.error('Failed to create new game');
+                // Fallback: just reload the page
+                window.location.reload();
+            }
         }
 
         async function triggerAIMove() {
@@ -184,9 +405,40 @@
             aiMoveInProgress = true;
             updateAIIndicator('thinking');
 
+            const wasPhase = gameState.phase;
+            const oldBoard = JSON.parse(JSON.stringify(gameState.board));
+            const oldUsedDirs = [...gameState.used_directions];
+
             try {
                 const response = await fetch(URL_PREFIX + '/api/ai-move', { method: 'POST' });
                 gameState = await response.json();
+
+                // Detect what move was made
+                if (wasPhase === 'dandelion') {
+                    // Find new dandelion placement
+                    for (let r = 0; r < BOARD_HEIGHT; r++) {
+                        for (let c = 0; c < BOARD_WIDTH; c++) {
+                            if (oldBoard[r][c] !== 1 && gameState.board[r][c] === 1) {
+                                const colLabel = COL_LABELS[c];
+                                lastMoveText = `Seed Placed at ${r + 1}${colLabel}`;
+                                const lastMoveEl = document.getElementById('lastMove');
+                                lastMoveEl.className = 'last-move dandelion-move';
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Find which direction was used
+                    for (let i = 0; i < oldUsedDirs.length; i++) {
+                        if (oldUsedDirs[i] === 0 && gameState.used_directions[i] === 1) {
+                            lastMoveText = `Wind Blew ${DIRECTION_NAMES[i]}`;
+                            const lastMoveEl = document.getElementById('lastMove');
+                            lastMoveEl.className = 'last-move wind-move';
+                            break;
+                        }
+                    }
+                }
+
                 renderGame();
             } catch (error) {
                 console.error('AI move failed:', error);
@@ -234,14 +486,13 @@
         }
 
         function startAutoPlay() {
-            const speed = parseInt(document.getElementById('speedSlider')?.value || 1000);
             autoPlayInterval = setInterval(() => {
                 if (!gameState.game_over && !aiMoveInProgress) {
                     triggerAIMove();
                 } else if (gameState.game_over) {
                     stopAutoPlay();
                 }
-            }, speed);
+            }, 1000);
             const btn = document.getElementById('playPauseBtn');
             if (btn) btn.innerHTML = '&#10074;&#10074; Pause';
         }
@@ -255,19 +506,6 @@
             if (btn) btn.innerHTML = '&#9658; Play';
         }
 
-        function updateSpeedDisplay() {
-            const slider = document.getElementById('speedSlider');
-            const display = document.getElementById('speedValue');
-            if (slider && display) {
-                display.textContent = (slider.value / 1000).toFixed(1) + 's';
-                // If auto-playing, restart with new speed
-                if (autoPlayInterval) {
-                    stopAutoPlay();
-                    startAutoPlay();
-                }
-            }
-        }
-
         async function placeDandelion(row, col) {
             if (gameState.phase !== 'dandelion' || gameState.game_over) return;
             if (gameState.board[row][col] === 1) return;
@@ -278,6 +516,13 @@
                 body: JSON.stringify({ row, col })
             });
             gameState = await response.json();
+
+            // Track last move
+            const colLabel = COL_LABELS[col];
+            lastMoveText = `Seed Placed at ${row + 1}${colLabel}`;
+            const lastMoveEl = document.getElementById('lastMove');
+            lastMoveEl.className = 'last-move dandelion-move';
+
             renderGame();
         }
 
@@ -293,10 +538,74 @@
                 body: JSON.stringify({ direction })
             });
             gameState = await response.json();
+
+            // Track last move
+            lastMoveText = `Wind Blew ${direction}`;
+            const lastMoveEl = document.getElementById('lastMove');
+            lastMoveEl.className = 'last-move wind-move';
+
             renderGame();
         }
 
         function renderGame() {
+            // Update status banner
+            const statusPlaying = document.getElementById('statusPlaying');
+            const statusGameover = document.getElementById('statusGameover');
+            const winnerBanner = document.getElementById('winnerBanner');
+
+            if (gameState.game_over) {
+                statusPlaying.style.display = 'none';
+                statusGameover.style.display = 'block';
+
+                // Check if game ended due to forfeit
+                if (gameState.forfeit) {
+                    if (gameState.forfeit === 'dandelion') {
+                        winnerBanner.innerHTML = '<div class="wind-wins-banner"><strong>Wind Wins!</strong>Dandelion made an invalid move (attempted to place on an occupied spot) and forfeits the game.</div>';
+                    } else {
+                        winnerBanner.innerHTML = '<div class="dandelion-wins-banner"><strong>Dandelion Wins!</strong>Wind made an invalid move (attempted to reuse a direction) and forfeits the game.</div>';
+                    }
+                } else {
+                    // Different messages for AI vs AI mode
+                    if (GAME_MODE === 'aivsai') {
+                        if (gameState.winner === 'dandelion') {
+                            const seedModel = gameState.ai_config?.seed_model_id || '?';
+                            winnerBanner.innerHTML = '<div class="dandelion-wins-banner"><strong>Dandelion Wins!</strong><br>Model ' + seedModel + ' wins</div>';
+                        } else {
+                            const windModel = gameState.ai_config?.wind_model_id || '?';
+                            winnerBanner.innerHTML = '<div class="wind-wins-banner"><strong>Wind Wins!</strong><br>Model ' + windModel + ' wins</div>';
+                        }
+                    } else {
+                        if (gameState.winner === 'dandelion') {
+                            winnerBanner.innerHTML = '<div class="dandelion-wins-banner"><strong>Dandelion Wins!</strong>The meadow is covered!</div>';
+                        } else {
+                            winnerBanner.innerHTML = '<div class="wind-wins-banner"><strong>Wind Wins!</strong>Empty spots remain!</div>';
+                        }
+                    }
+                }
+            } else {
+                statusPlaying.style.display = 'block';
+                statusGameover.style.display = 'none';
+
+                // Update turn info
+                const turnInfo = document.getElementById('turnInfo');
+
+                // Check if we should show goal text (hvh always, hvai only on human's turn)
+                const showGoal = GAME_MODE === 'hvh' ||
+                                 (GAME_MODE === 'hvai' && gameState.phase === gameState.ai_config?.human_role);
+
+                if (gameState.phase === 'dandelion') {
+                    const goalText = showGoal ? '<div style="font-size: 0.85rem; color: #4ade80; margin-top: 3px;">Try to cover the board</div>' : '';
+                    turnInfo.innerHTML = '<span style="color: #4ade80;">Dandelion\'s Turn</span>' + goalText;
+                } else {
+                    const goalText = showGoal ? '<div style="font-size: 0.85rem; color: #60a5fa; margin-top: 3px;">Try to leave squares NOT covered</div>' : '';
+                    turnInfo.innerHTML = '<span style="color: #60a5fa;">Wind\'s Turn</span>' + goalText;
+                }
+
+                // Update last move display
+                const lastMoveEl = document.getElementById('lastMove');
+                lastMoveEl.textContent = lastMoveText;
+            }
+
             // Update stats
             const displayTurn = Math.min(gameState.turn + 1, NUM_TURNS);
             document.getElementById('statTurn').textContent = displayTurn;
@@ -364,52 +673,23 @@
             // Update badges and turn display
             const boardBadge = document.getElementById('boardBadge');
             const compassBadge = document.getElementById('compassBadge');
-            const turnPlayer = document.getElementById('turnPlayer');
-            const turnGoal = document.getElementById('turnGoal');
-            const winnerAnnouncement = document.getElementById('winnerAnnouncement');
 
             if (gameState.game_over) {
-                if (gameState.winner === 'dandelion') {
-                    boardBadge.textContent = 'Game Over';
-                    boardBadge.className = 'panel-badge active';
-                    compassBadge.textContent = 'Game Over';
-                    compassBadge.className = 'panel-badge active';
-                    turnPlayer.textContent = 'Dandelion Wins!';
-                    turnPlayer.className = 'turn-player';
-                    turnGoal.textContent = 'The meadow is covered!';
-                    turnGoal.className = 'turn-goal';
-                    winnerAnnouncement.innerHTML = '<div class="winner-announcement dandelion-wins">The Dandelions Win! The meadow is covered!</div>';
-                } else {
-                    boardBadge.textContent = 'Game Over';
-                    boardBadge.className = 'panel-badge waiting';
-                    compassBadge.textContent = 'Game Over';
-                    compassBadge.className = 'panel-badge waiting';
-                    turnPlayer.textContent = 'Wind Wins!';
-                    turnPlayer.className = 'turn-player wind';
-                    turnGoal.textContent = 'Empty spots remain!';
-                    turnGoal.className = 'turn-goal wind';
-                    winnerAnnouncement.innerHTML = '<div class="winner-announcement wind-wins">The Wind Wins! Empty spots remain!</div>';
-                }
+                boardBadge.textContent = 'Game Over';
+                compassBadge.textContent = 'Game Over';
+                boardBadge.className = 'panel-badge waiting';
+                compassBadge.className = 'panel-badge waiting';
             } else {
-                winnerAnnouncement.innerHTML = '';
                 if (gameState.phase === 'dandelion') {
                     boardBadge.textContent = "Dandelion's Turn";
                     boardBadge.className = 'panel-badge active';
                     compassBadge.textContent = 'Waiting';
                     compassBadge.className = 'panel-badge waiting';
-                    turnPlayer.textContent = 'Dandelion';
-                    turnPlayer.className = 'turn-player';
-                    turnGoal.textContent = 'Try to fill the board';
-                    turnGoal.className = 'turn-goal';
                 } else {
                     boardBadge.textContent = 'Waiting';
                     boardBadge.className = 'panel-badge waiting';
                     compassBadge.textContent = "Wind's Turn";
                     compassBadge.className = 'panel-badge active';
-                    turnPlayer.textContent = 'Wind';
-                    turnPlayer.className = 'turn-player wind';
-                    turnGoal.textContent = 'Try to leave empty squares';
-                    turnGoal.className = 'turn-goal wind';
                 }
             }
 
@@ -418,6 +698,7 @@
         }
 
         // Event listeners
+        document.getElementById('rematchBtn').addEventListener('click', rematch);
         document.getElementById('newGameBtn').addEventListener('click', newGame);
         document.querySelectorAll('.dir-btn').forEach(btn => {
             btn.addEventListener('click', () => blowWind(btn.dataset.dir));
@@ -427,7 +708,6 @@
         if (GAME_MODE === 'aivsai') {
             document.getElementById('playPauseBtn')?.addEventListener('click', toggleAutoPlay);
             document.getElementById('stepBtn')?.addEventListener('click', triggerAIMove);
-            document.getElementById('speedSlider')?.addEventListener('input', updateSpeedDisplay);
         }
 
         // Initialize

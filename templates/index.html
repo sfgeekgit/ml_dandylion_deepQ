@@ -20,25 +20,23 @@
             <p class="subtitle">A game of seeds and wind from "Math Games with Bad Drawings" by Ben Orlin</p>
 
             <div class="game-modes">
-                <a href="{{ url_for('game.play_hvh') }}" class="mode-card">
-                    <div class="mode-icon">&#128101;</div>
+	      <!--
+              <a href="{{ url_for('game.play_hvh') }}" class="mode-card">
                     <h2>Human vs Human</h2>
                     <p>Play against a friend on the same device</p>
                 </a>
-
+	      -->
                 <a href="{{ url_for('game.setup_hvai') }}" class="mode-card {% if not has_seed_models and not has_wind_models %}disabled{% endif %}">
-                    <div class="mode-icon">&#129302;</div>
-                    <h2>Human vs AI</h2>
-                    <p>Challenge a trained neural network</p>
+                    <h2>Play The Game</h2>
+                    <p>Human vs Human <br> Or<BR>Human vs AI</p>
                     {% if not has_seed_models and not has_wind_models %}
                     <span class="mode-disabled-msg">No models available - train one first</span>
                     {% endif %}
                 </a>
 
                 <a href="{{ url_for('game.setup_aivsai') }}" class="mode-card {% if not has_seed_models or not has_wind_models %}disabled{% endif %}">
-                    <div class="mode-icon">&#128064;</div>
-                    <h2>AI vs AI</h2>
-                    <p>Watch neural networks compete</p>
+                    <h2>Watch AIs Play</h2>
+                    <p>Neural Net vs Neural Net<BR><BR>Watch them battle</p>
                     {% if not has_seed_models or not has_wind_models %}
                     <span class="mode-disabled-msg">Need both seed and wind models</span>
                     {% endif %}
@@ -52,6 +50,13 @@
                 {% endif %}
             </div>
 
+	    <a href="https://github.com/sfgeekgit/ml_dandylion_deepQ" target="_blank" class="back-to-menu-btn">GitHub</a>
+	    <BR><BR>
+	    <a class="back-to-menu-btn">About the reinforcement learning</a> (coming soon)
+	    <BR><BR>
+	    <a class="back-to-menu-btn">Train your own model</a> (coming soon)
+	    
+	    
             <div class="rules-panel">
                 <h3>How to Play</h3>
                 <div class="rules-content">

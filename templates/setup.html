@@ -9,21 +9,26 @@
 </head>
 <body>
     <div class="dashboard setup-page">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">*</div>
-                <h1>Dandelions</h1>
+      <div class="header">
+	<div class="logo">
+          <a href="{{ url_for('game.landing') }}" class="logo-link">
+            <div class="logo-icon">*</div>
+            <h1>Dandelions</h1>
+          </a>
+</div>
+            <div class="header-buttons">
+                <a href="https://github.com/sfgeekgit/ml_dandylion_deepQ" target="_blank" class="back-to-menu-btn">GitHub</a>
+                <a href="{{ url_for('game.landing') }}" class="back-to-menu-btn">Home</a>
             </div>
-            <a href="{{ url_for('game.landing') }}" class="btn btn-secondary">Back</a>
         </div>
-
-        <h2 class="setup-title">{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %} Setup</h2>
-
+      <!--
+        <h2 class="setup-title">{% if mode == 'hvai' %}Human vs AI{% else %}AI vs AI{% endif %}</h2>
+-->
         <div class="setup-form">
             {% if mode == 'hvai' %}
             <!-- Human vs AI: Choose role and opponent model -->
             <div class="form-group">
-                <label>Play as:</label>
+                <label style="font-size: 1.2rem; font-weight: 600; color: #e0e0e0;">You play as:</label>
                 <div class="role-selector">
                     <button type="button" class="role-btn active" data-role="dandelion" onclick="selectRole('dandelion')">
                         <span class="role-icon">*</span> Dandelion (Seeds)
@@ -35,8 +40,9 @@
             </div>
 
             <div class="form-group">
-                <label id="modelLabel">AI Opponent (Wind model):</label>
+                <label id="modelLabel" style="font-size: 1.2rem; font-weight: 600; color: #e0e0e0;">Your Opponent (Wind Brain):</label>
                 <select id="modelSelect" onchange="updateParamsDisplay()">
+                    <option value="hvh">Play Both Sides Yourself</option>
                     <optgroup id="modelOptgroup" label="Wind Models">
                         {% for model in wind_models %}
                         <option value="wind:{{ model.id }}" data-params='{{ model.params | tojson }}'>
@@ -74,17 +80,19 @@
             {% endif %}
 
             <div class="form-group">
-                <label>Temperature (AI randomness): <span id="tempValue">0.0</span></label>
+                <label><span style="color: #e0e0e0;">Temperature</span> (AI randomness): <span id="tempValue">0.0</span></label>
                 <input type="range" id="tempSlider" min="0" max="10" step="0.1" value="0" oninput="updateTempDisplay()">
-                <p class="help-text">0 = deterministic (always picks best move), higher = more random</p>
+                <p class="help-text">0 = deterministic.  Higher = more random</p>
             </div>
 
             {% if mode == 'aivsai' %}
             <div class="form-group">
-                <label>Wind Temperature: <span id="windTempValue">0.0</span></label>
+                <label>Wind <span style="color: #e0e0e0;">Temperature</span>: <span id="windTempValue">0.0</span></label>
                 <input type="range" id="windTempSlider" min="0" max="10" step="0.1" value="0" oninput="updateWindTempDisplay()">
             </div>
             {% endif %}
+
+            <button class="btn btn-primary btn-large" id="startGameBtn" onclick="startGame()">Start Game</button>
 
             <div class="params-display" id="paramsDisplay">
                 <h4>Model Hyperparameters</h4>
@@ -103,8 +111,6 @@
                 </div>
             </div>
             {% endif %}
-
-            <button class="btn btn-primary btn-large" id="startGameBtn" onclick="startGame()">Start Game</button>
         </div>
     </div>
 
@@ -117,7 +123,27 @@
         const seedModels = {{ seed_models | tojson }};
         const windModels = {{ wind_models | tojson }};
 
+        console.log('Seed models:', seedModels);
+        console.log('Wind models:', windModels);
+
+        // Remember selected models for each role
+        let savedSelections = {
+            dandelion: null,  // Will store wind model selection
+            wind: null        // Will store seed model selection
+        };
+
         function selectRole(role) {
+            // Don't re-select if already selected
+            if (selectedRole === role) {
+                return;
+            }
+
+            // Save current selection before switching
+            const select = document.getElementById('modelSelect');
+            if (select.value) {
+                savedSelections[selectedRole] = select.value;
+            }
+
             selectedRole = role;
 
             // Update button states
@@ -126,35 +152,69 @@
             });
 
             // Update model dropdown based on role
-            const select = document.getElementById('modelSelect');
-            const optgroup = document.getElementById('modelOptgroup');
             const label = document.getElementById('modelLabel');
 
             // Clear current options
             select.innerHTML = '';
 
+            // Add "Play Both Sides Yourself" option first
+            const hvhOpt = document.createElement('option');
+            hvhOpt.value = 'hvh';
+            hvhOpt.textContent = 'Play Both Sides Yourself';
+            select.appendChild(hvhOpt);
+
             if (role === 'dandelion') {
                 // Human plays dandelion, AI plays wind
-                label.textContent = 'AI Opponent (Wind model):';
-                optgroup.label = 'Wind Models';
-                windModels.forEach(model => {
+                label.textContent = 'Your Opponent (Wind Brain):';
+                if (windModels && windModels.length > 0) {
+                    windModels.forEach(model => {
+                        const opt = document.createElement('option');
+                        opt.value = 'wind:' + model.id;
+                        opt.dataset.params = JSON.stringify(model.params || {});
+                        const layerCount = model.params?.layer_count || model.params?.layers || 'N/A';
+                        opt.textContent = `${model.id} (${model.params?.epochs || 0} epochs, ${layerCount} layers)`;
+                        select.appendChild(opt);
+                    });
+
+                    // Restore saved selection or default to last option
+                    if (savedSelections[role]) {
+                        select.value = savedSelections[role];
+                    } else {
+                        select.selectedIndex = select.options.length - 1;
+                    }
+                } else {
                     const opt = document.createElement('option');
-                    opt.value = 'wind:' + model.id;
-                    opt.dataset.params = JSON.stringify(model.params);
-                    opt.textContent = `${model.id} (${model.params.epochs} epochs, ${model.params.layer_count} layers)`;
+                    opt.value = '';
+                    opt.textContent = 'No wind models available';
+                    opt.disabled = true;
                     select.appendChild(opt);
-                });
+                }
             } else {
                 // Human plays wind, AI plays dandelion
-                label.textContent = 'AI Opponent (Seed model):';
-                optgroup.label = 'Seed Models';
-                seedModels.forEach(model => {
+                label.textContent = 'Your Opponent (Seed Brain):';
+                if (seedModels && seedModels.length > 0) {
+                    seedModels.forEach(model => {
+                        const opt = document.createElement('option');
+                        opt.value = 'seeds:' + model.id;
+                        opt.dataset.params = JSON.stringify(model.params || {});
+                        const layerCount = model.params?.layer_count || model.params?.layers || 'N/A';
+                        opt.textContent = `${model.id} (${model.params?.epochs || 0} epochs, ${layerCount} layers)`;
+                        select.appendChild(opt);
+                    });
+
+                    // Restore saved selection or default to last option
+                    if (savedSelections[role]) {
+                        select.value = savedSelections[role];
+                    } else {
+                        select.selectedIndex = select.options.length - 1;
+                    }
+                } else {
                     const opt = document.createElement('option');
-                    opt.value = 'seeds:' + model.id;
-                    opt.dataset.params = JSON.stringify(model.params);
-                    opt.textContent = `${model.id} (${model.params.epochs} epochs, ${model.params.layer_count} layers)`;
+                    opt.value = '';
+                    opt.textContent = 'No seed models available';
+                    opt.disabled = true;
                     select.appendChild(opt);
-                });
+                }
             }
 
             updateParamsDisplay();
@@ -198,9 +258,14 @@
             if (MODE === 'hvai') {
                 const select = document.getElementById('modelSelect');
                 const option = select.options[select.selectedIndex];
-                if (option && option.dataset.params) {
+
+                if (select.value === 'hvh') {
+                    document.getElementById('paramsContent').innerHTML = '<p style="color: #888; font-style: italic;">Human vs Human mode - no AI model parameters</p>';
+                } else if (option && option.dataset.params) {
                     const params = JSON.parse(option.dataset.params);
                     document.getElementById('paramsContent').innerHTML = formatParams(params);
+                } else {
+                    document.getElementById('paramsContent').innerHTML = 'Select a model to see its training parameters';
                 }
             }
         }
@@ -239,19 +304,26 @@
 
             if (MODE === 'hvai') {
                 const select = document.getElementById('modelSelect');
-                const [modelType, modelId] = select.value.split(':');
-                const temp = parseFloat(document.getElementById('tempSlider').value);
 
-                config = {
-                    game_mode: 'hvai',
-                    ai_config: {
-                        human_role: selectedRole,
-                        model_type: modelType,
-                        model_id: modelId,
-                        ai_temp: temp
-                    }
-                };
-                gameUrl = URL_PREFIX + '/play/hvai/game';
+                // Check if "Play Both Sides Yourself" is selected
+                if (select.value === 'hvh') {
+                    config = { game_mode: 'hvh' };
+                    gameUrl = URL_PREFIX + '/play/hvh';
+                } else {
+                    const [modelType, modelId] = select.value.split(':');
+                    const temp = parseFloat(document.getElementById('tempSlider').value);
+
+                    config = {
+                        game_mode: 'hvai',
+                        ai_config: {
+                            human_role: selectedRole,
+                            model_type: modelType,
+                            model_id: modelId,
+                            ai_temp: temp
+                        }
+                    };
+                    gameUrl = URL_PREFIX + '/play/hvai/game';
+                }
             } else {
                 const seedId = document.getElementById('seedModelSelect').value;
                 const windId = document.getElementById('windModelSelect').value;
@@ -287,8 +359,44 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             if (MODE === 'hvai') {
+                // Set initial selection to last option
+                const select = document.getElementById('modelSelect');
+                if (select.options.length > 0) {
+                    select.selectedIndex = select.options.length - 1;
+                }
                 updateParamsDisplay();
             } else {
+                // Check for URL parameters (from "New Game" in aivsai mode)
+                const urlParams = new URLSearchParams(window.location.search);
+                const seedParam = urlParams.get('seed');
+                const windParam = urlParams.get('wind');
+                const seedTempParam = urlParams.get('seed_temp');
+                const windTempParam = urlParams.get('wind_temp');
+
+                // Set seed model if provided
+                const seedSelect = document.getElementById('seedModelSelect');
+                if (seedParam && seedSelect) {
+                    seedSelect.value = seedParam;
+                }
+
+                // Set wind model if provided
+                const windSelect = document.getElementById('windModelSelect');
+                if (windParam && windSelect) {
+                    windSelect.value = windParam;
+                }
+
+                // Set temperatures if provided
+                const tempSlider = document.getElementById('tempSlider');
+                const windTempSlider = document.getElementById('windTempSlider');
+                if (seedTempParam && tempSlider) {
+                    tempSlider.value = seedTempParam;
+                    updateTempDisplay();
+                }
+                if (windTempParam && windTempSlider) {
+                    windTempSlider.value = windTempParam;
+                    updateWindTempDisplay();
+                }
+
                 updateSeedParams();
                 updateWindParams();
             }

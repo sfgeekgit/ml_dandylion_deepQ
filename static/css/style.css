@@ -310,6 +310,7 @@ h1 {
     gap: 10px;
     padding: 15px 20px;
     border-top: 1px solid #2a2a2a;
+    flex-direction: column;
 }
 
 .btn {
@@ -454,6 +455,180 @@ h1 {
     100% { transform: scale(1); opacity: 1; }
 }
 
+/* =====================================================
+   GAME STATUS BANNER STYLES
+   ===================================================== */
+
+.rematch-warning {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    color: #fbbf24;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.game-status-banner {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    min-height: 90px;
+    display: grid;
+    grid-template-columns: 150px 1fr 150px;
+    align-items: center;
+    padding: 15px 25px;
+    gap: 20px;
+}
+
+.status-playing {
+    display: block;
+}
+
+.model-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.model-info > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.model-info.seeds-info {
+    justify-content: flex-start;
+}
+
+.model-info.wind-info {
+    justify-content: flex-end;
+}
+
+.model-label {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.seeds-info .model-label {
+    color: #4ade80;
+}
+
+.wind-info .model-label {
+    color: #60a5fa;
+}
+
+.model-name {
+    font-family: 'JetBrains Mono', monospace;
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.status-center {
+    flex: 1;
+    text-align: center;
+}
+
+.turn-info {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 5px;
+}
+
+.last-move {
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 20px;
+}
+
+.last-move.dandelion-move {
+    color: #4ade80;
+}
+
+.last-move.wind-move {
+    color: #60a5fa;
+}
+
+.status-gameover {
+    width: 100%;
+}
+
+#winnerBanner {
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.6;
+}
+
+#winnerBanner strong {
+    display: block;
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+.dandelion-wins-banner {
+    color: #4ade80;
+}
+
+.wind-wins-banner {
+    color: #60a5fa;
+}
+
+.model-params-panel {
+    margin-top: 25px;
+}
+
+.params-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.param-section {
+    padding: 15px;
+    background: #252525;
+    border-radius: 8px;
+}
+
+.param-section h4 {
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.param-section p {
+    color: #888;
+    font-size: 0.9rem;
+    margin: 5px 0;
+}
+
+.param-section .params-table {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    border-collapse: collapse;
+}
+
+.param-section .params-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #333;
+}
+
+.param-section .params-table td:first-child {
+    color: #888;
+    font-weight: 500;
+}
+
+.param-section .params-table td:last-child {
+    color: #e0e0e0;
+}
+
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
     body {
@@ -548,6 +723,41 @@ h1 {
     .rules-panel ul {
         font-size: 0.85rem;
     }
+
+    .game-status-banner {
+        padding: 12px 15px;
+        min-height: 80px;
+        grid-template-columns: 120px 1fr 120px;
+        gap: 10px;
+    }
+
+    .params-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .model-label {
+        font-size: 0.8rem;
+    }
+
+    .model-name {
+        font-size: 0.75rem;
+    }
+
+    .turn-info {
+        font-size: 0.95rem;
+    }
+
+    .last-move {
+        font-size: 0.75rem;
+    }
+
+    #winnerBanner {
+        font-size: 1.1rem;
+    }
+
+    #winnerBanner strong {
+        font-size: 1.3rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -629,6 +839,41 @@ h1 {
     .legend-icon {
         width: 20px;
         height: 20px;
+    }
+
+    .game-status-banner {
+        padding: 10px 12px;
+        min-height: 70px;
+        grid-template-columns: 100px 1fr 100px;
+        gap: 8px;
+    }
+
+    .model-info {
+        font-size: 0.75rem;
+    }
+
+    .model-label {
+        font-size: 0.7rem;
+    }
+
+    .model-name {
+        font-size: 0.7rem;
+    }
+
+    .turn-info {
+        font-size: 0.85rem;
+    }
+
+    .last-move {
+        font-size: 0.7rem;
+    }
+
+    #winnerBanner {
+        font-size: 0.95rem;
+    }
+
+    #winnerBanner strong {
+        font-size: 1.1rem;
     }
 }
 
@@ -1113,6 +1358,48 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .logo-link:hover h1 {
+    color: #4ade80;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.back-to-menu-btn {
+    padding: 8px 16px;
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #888;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.back-to-menu-btn:hover {
+    background: #2a2a2a;
+    border-color: #4ade80;
+    color: #4ade80;
+}
+
+.footer {
+    text-align: center;
+    padding: 30px 20px;
+    margin-top: 40px;
+    border-top: 1px solid #2a2a2a;
+}
+
+.github-link {
+    color: #888;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+
+.github-link:hover {
     color: #4ade80;
 }
 

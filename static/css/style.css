@@ -886,7 +886,7 @@ h1 {
 }
 
 .landing-content {
-    padding: 40px 20px;
+    padding: 10px 20px;
     max-width: 900px;
     margin: 0 auto;
 }
@@ -979,15 +979,90 @@ h1 {
     text-align: left;
 }
 
+.rules-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+.rules-toggle:hover {
+    opacity: 0.8;
+}
+
+.rules-toggle h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.rules-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    line-height: 1;
+    height: 1.5rem;
+    color: #4ade80;
+}
+
+.rules-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+}
+
+.rules-toggle h3 {
+    margin: 0;
+}
+
+.rules-caret {
+    flex-shrink: 0;
+}
+
 .rules-panel h3 {
     color: #4ade80;
-    margin-bottom: 15px;
+}
+
+.rules-content {
+    animation: slideDown 0.3s ease;
+    cursor: pointer;
 }
 
 .rules-content p {
     margin: 10px 0;
-    color: #999;
+    color: #e0e0e0;
     line-height: 1.6;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
 }
 
 /* =====================================================

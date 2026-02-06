@@ -44,7 +44,7 @@ HIDDEN_SIZE = INPUT_SIZE *2
 MIDDLE_LAYERS = [HIDDEN_SIZE, HIDDEN_SIZE] # , HIDDEN_SIZE]
 OUTPUT_SIZE = NUM_DIR
 
-EPOCHS = 1240000
+EPOCHS = 2250000
 #EPOCHS = 240000
 #EPOCHS = 920000
 
@@ -58,7 +58,7 @@ reward_vals = {
     "illegal": -100, 
     "lose": -75,
     "meh_base": 20,
-    "spread_pen": -1 # per dot on the board (seed spread)
+    "spread_pen": -2 # per dot on the board (seed spread)
 }
 
 
@@ -222,7 +222,7 @@ def train_wind():
                     scheduler.step(avg_loss)
 
 
-        epoch_mod = 400
+        epoch_mod = 1000
         if (epoch + 0) % epoch_mod == 0:
             learn_rate = optimizer.param_groups[0]['lr']
             wpct = round(100*wcnt / epoch_mod,1)

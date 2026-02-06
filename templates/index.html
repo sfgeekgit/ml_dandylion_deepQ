@@ -52,19 +52,99 @@
 
 	    <a href="https://github.com/sfgeekgit/ml_dandylion_deepQ" target="_blank" class="back-to-menu-btn">GitHub</a>
 	    <BR><BR>
-	    <a class="back-to-menu-btn">About the reinforcement learning</a> (coming soon)
-	    <BR><BR>
-	    <a class="back-to-menu-btn">Train your own model</a> (coming soon)
+
+
+            <div class="rules-panel">
+                <button class="rules-toggle" onclick="toggleSection('rulesContent')">
+                    <span class="rules-caret">▶</span>
+                    <h3>How to Play</h3>
+                </button>
+                <div class="rules-content" id="rulesContent" style="display: none;" onclick="toggleSection('rulesContent')">
+		  <p><strong>The Board</strong> is a 5x5 meadow. Each player makes SEVEN moves, dandelions first.</p>
+		  <p><strong>Dandelions win if</strong> the entire board is covered in dandelions and seeds.</p>
+		  <p><strong>Wind wins if</strong> any square is uncovered after seven moves.</p>
+
+                  <p><strong>Each turn:</strong> Dandelion plants one flower, then the Wind blows.
+		    <BR><BR>The gust of wind spreads seeds from each flower in the direction the wind blew. Any empty square in that direction is covered with a new seed. Dandelions can place flowers on top of seeds, but only flowers will spread new seeds.
+		    <BR><BR>There are eight compass directions the wind can blow, but each direction can only be used ONCE per game, the eighth will be unused. Choose carefully!</p>
+		  <p>It's simpler than it sounds! Just try one round and you'll see.</p>
+                </div>
+            </div>
+
+	    
+            <div class="rules-panel">
+                <button class="rules-toggle" onclick="toggleSection('aboutRLContent')">
+                    <span class="rules-caret">▶</span>
+                    <h3>About Reinforcement Learning</h3>
+                </button>
+                <div class="rules-content" id="aboutRLContent" style="display: none;" onclick="toggleSection('aboutRLContent')">
+                    <p>This topic is well covered elsewhere.</p>
+                    <p>"Your Logits are shit" <BR>- some wizard mumbled that once, and it's been a motivating mantra in head ever since.</p>
+
+<p>You know those diagrams of circles and lines? Those really are how neural nets work! Each circle and each line has its own floating point number. Each line is a number called a "weight" (which might be negative) Each circle holds one number, and has another number added to it which is the "bias."<p>
+
+<p> You start with some numbers in the first row (the entry data) and each number gets multiplied by the line (the weight) it follows. In the next row, all the incoming weights are added together, plus the bias. Then some simple function is applied, for example ensure that the result is at least zero. Now that circle has its own number and the process moves forward to the next row.</p>
+		    <p>The last row of circles is the output, called the "logits." For a project like this, each logit corresponds to one specific action, and whichever has the highest value is the final choice. For example, if you're training a digit recognizer, it could have 10 output circles (10 logits) one for each digit  0-9.  After the net runs, if the circle for '7' has 9.3 and the circle for '1' has 3.1 (with small numbers for the rest), your net is pretty sure the digit is a '7' but thinks there's a chance it could be a '1'. Often these logits are then passed through a normalizing or softmax function that converts them into probabilities adding up to 100%, so you can say "74% confident this is a 7".
+		      
+		    
+                </div>
+            </div>
+
+            <div class="rules-panel">
+                <button class="rules-toggle" onclick="toggleSection('aboutdqContent')">
+                    <span class="rules-caret">▶</span>
+                    <h3>About Deep Q Learning</h3>
+                </button>
+                <div class="rules-content" id="aboutdqContent" style="display: none;" onclick="toggleSection('aboutdqContent')">
+                    <p>It's cool. I want to write more, but this topic is well covered elsewhere by better communicators than I</p>
+                    <p>I will say that the Bellman Equation is magic!
+		      At any intermediate step (like being in the middle of a maze) Deep Q Learning with the Bellman equation (given enough runs) can pick the optimal move for that middle state, even if it doesn't know the optimal end state! In pure Bellman, there is no need to define small rewards for the middle states (like small bonus for moving forward), just the big juicy rewards at the end state, (such as win or lose) and they will propagate backwards like magic.</p>
+
+                </div>
+            </div>
+
 	    
 	    
             <div class="rules-panel">
-                <h3>How to Play</h3>
-                <div class="rules-content">
-                    <p><strong>Dandelion</strong> places flowers on a 5x5 board, trying to fill the entire board with dandelions and seeds.</p>
-                    <p><strong>Wind</strong> blows after each placement, spreading seeds from all dandelions in one of 8 directions (N, S, E, W, NE, NW, SE, SW). Each direction can only be used once.</p>
-                    <p><strong>Dandelion wins</strong> if the board fills completely. <strong>Wind wins</strong> if all 7 turns pass without filling the board.</p>
+                <button class="rules-toggle" onclick="toggleSection('thisQContent')">
+                    <span class="rules-caret">▶</span>
+                    <h3>About Deep Q Learning for Dandelions in particular</h3>
+                </button>
+                <div class="rules-content" id="thisQContent" style="display: none;" onclick="toggleSection('thisQContent')">
+                  <p>Coming soon</p>
+		  <p>Input rows (board state) <BR>Output rows (which move, diff for 2 brains) (had to train 2 diff brains)<BR>Brief bits about what the hyperparameters are, if I get to it, maybe other design decisions.
+		  </p>
+		  <p>Training vs random play to bootstrap. Training model vs model, but deterministic, so added temperature. Logits scaled by temperature before softmax, then pick weighted sample.
+		    <p>
                 </div>
             </div>
+
+            <div class="rules-panel">
+                <button class="rules-toggle" onclick="toggleSection('trainContent')">
+                    <span class="rules-caret">▶</span>
+                    <h3>Train Your Own Model</h3>
+                </button>
+                <div class="rules-content" id="trainContent" style="display: none;" onclick="toggleSection('trainContent')">
+                    <p>Coming soon? Maybe? Try tweaking different hyperparameters and see how it does!</p>
+                    <p>Meanwhile, you can fork the code on <a href="https://github.com/sfgeekgit/ml_dandylion_deepQ" target="_blank" style="color: #4ade80; text-decoration: none;">GitHub</a> and play around with it yourself!</p>
+                </div>
+            </div>
+
+
+            <script>
+                function toggleSection(contentId) {
+                    const content = document.getElementById(contentId);
+                    const panel = content.closest('.rules-panel');
+                    const caret = panel.querySelector('.rules-caret');
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        caret.textContent = '▼';
+                    } else {
+                        content.style.display = 'none';
+                        caret.textContent = '▶';
+                    }
+                }
+            </script>
         </div>
     </div>
 </body>

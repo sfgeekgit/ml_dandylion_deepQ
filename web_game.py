@@ -24,6 +24,10 @@ from model_utils import (
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+# Honor X-Forwarded-Proto/Host from Caddy so generated redirects keep https://
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # Create blueprint with URL prefix and static files
 game = Blueprint('game', __name__, url_prefix=URL_PREFIX,
                  static_folder='static', static_url_path='/static')
@@ -393,4 +397,4 @@ def wind():
 app.register_blueprint(game)
 
 if __name__ == '__main__':
-    app.run(port=5002, debug=True)
+    app.run(port=5002, debug=False)

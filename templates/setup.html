@@ -81,14 +81,14 @@
 
             <div class="form-group">
                 <label><span style="color: #e0e0e0;">Temperature</span> (AI randomness): <span id="tempValue">0.0</span></label>
-                <input type="range" id="tempSlider" min="0" max="10" step="0.1" value="0" oninput="updateTempDisplay()">
+                <input type="range" id="tempSlider" min="0" max="5" step="0.1" value="0" oninput="updateTempDisplay()">
                 <p class="help-text">0 = deterministic.  Higher = more random</p>
             </div>
 
             {% if mode == 'aivsai' %}
             <div class="form-group">
                 <label>Wind <span style="color: #e0e0e0;">Temperature</span>: <span id="windTempValue">0.0</span></label>
-                <input type="range" id="windTempSlider" min="0" max="10" step="0.1" value="0" oninput="updateWindTempDisplay()">
+                <input type="range" id="windTempSlider" min="0" max="5" step="0.1" value="0" oninput="updateWindTempDisplay()">
             </div>
             {% endif %}
 

@@ -22,7 +22,9 @@ from model_utils import (
 )
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Stable key shared across gunicorn workers (falls back to random for local dev).
+# Without a fixed key each worker signs session cookies differently -> players lose game state.
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24)
 
 # Honor X-Forwarded-Proto/Host from Caddy so generated redirects keep https://
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -396,5 +398,5 @@ def wind():
 # Register the blueprint
 app.register_blueprint(game)
 
-if __name__ == '__main__':
-    app.run(port=5002, debug=False)
+# Served by gunicorn in production: `gunicorn web_game:app` (see web_game.service).
+# No app.run() here on purpose, so the Werkzeug dev server / debugger can never be invoked.
